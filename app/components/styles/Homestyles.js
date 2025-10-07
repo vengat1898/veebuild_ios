@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
   brandsScroll: { alignItems: "center", paddingVertical: 15 },
   brandCard: { marginRight: 20, justifyContent: "center", alignItems: "center" },
   brandImage: { 
-    width: 100, 
-    height: 60, 
+    width: 110, 
+    height: 110, 
     borderWidth: 2, 
     borderColor: "#f3e1ccff", 
     borderRadius: 10, 

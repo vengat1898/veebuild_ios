@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e90ff',
+    color: '#795805ff',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   button: {
     height: 50,
-    backgroundColor: '#1e90ff',
+    backgroundColor: '#795805ff',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,

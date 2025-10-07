@@ -1,7 +1,8 @@
 import axios from "axios";
 
-// const API_BASE_URL = "https://aimoneworld.com/outsourcing/mobile/";
-const API_BASE_URL = "https://veebuilds.com/mobile_org/";
+
+// const API_BASE_URL = "https://veebuilds.com/mobile_org/";
+const API_BASE_URL = "https://veebuilds.com/mobile/";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
