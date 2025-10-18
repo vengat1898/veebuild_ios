@@ -3,19 +3,43 @@ import { Dimensions, StyleSheet } from "react-native";
 const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor:"#FFE5B5" },
-  contentBackground: { flex: 1, backgroundColor: "#F8F1E5" },
-  scrollContent: { paddingBottom: 20 },
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: "#FFE5B5" 
+  },
+  contentBackground: { 
+    flex: 1, 
+    backgroundColor: "#F8F1E5" 
+  },
+  scrollContent: { 
+    paddingBottom: 20 
+  },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 15,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  city: { color: "#FF8800", fontWeight: "600", fontSize: 14 },
-  location: { color: "#000", fontSize: 15, marginTop: 2 },
-  profileIcon: { backgroundColor: "#FFA500", borderRadius: 20, padding: 5 },
+  headerTop: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center" 
+  },
+  city: { 
+    color: "#FF8800", 
+    fontWeight: "600", 
+    fontSize: 14 
+  },
+  location: { 
+    color: "#000", 
+    fontSize: 15, 
+    marginTop: 2 
+  },
+  profileIcon: { 
+    backgroundColor: "#FFA500", 
+    borderRadius: 20, 
+    padding: 5 
+  },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -25,18 +49,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 17,
     paddingVertical: 9,
     elevation: 3,
-    borderColor:"#b86822ff",
-    borderWidth:0.5
+    borderColor: "#b86822ff",
+    borderWidth: 0.5
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: "#000" },
-  cardContainer: { flexDirection: "row", justifyContent: "space-between", padding: 16 },
-  card: { flex: 1, marginHorizontal: 5, borderRadius: 15, overflow: "hidden", height: 200,borderWidth:1,borderColor:"#613004ff" },
-  cardBg: { width: "100%", height: "100%", position: "absolute" },
-  cardOverlay: { flex: 1, justifyContent: "flex-end", padding: 15 },
-  cardNumber: { fontSize: 24, fontWeight: "bold", color: "#613004ff" },
-  hotEnquiry: { marginHorizontal: 16, marginTop: 10, borderRadius: 12, overflow: "hidden" },
-  hotEnquiryImg: { width: "100%", height: 120, borderRadius: 12 },
+  searchIcon: { 
+    marginRight: 8 
+  },
+  searchInput: { 
+    flex: 1, 
+    fontSize: 14, 
+    color: "#000" 
+  },
+  cardContainer: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    padding: 16 
+  },
+  card: { 
+    flex: 1, 
+    marginHorizontal: 5, 
+    borderRadius: 15, 
+    overflow: "hidden", 
+    height: 200, 
+    borderWidth: 1, 
+    borderColor: "#613004ff" 
+  },
+  cardBg: { 
+    width: "100%", 
+    height: "100%", 
+    position: "absolute" 
+  },
+  cardOverlay: { 
+    flex: 1, 
+    justifyContent: "flex-end", 
+    padding: 15 
+  },
+  cardNumber: { 
+    fontSize: 24, 
+    fontWeight: "bold", 
+    color: "#613004ff" 
+  },
+  hotEnquiry: { 
+    marginHorizontal: 16, 
+    marginTop: 10, 
+    borderRadius: 12, 
+    overflow: "hidden" 
+  },
+  hotEnquiryImg: { 
+    width: "100%", 
+    height: 120, 
+    borderRadius: 12 
+  },
   hotEnquiryText: {
     position: "absolute",
     bottom: 10,
@@ -48,14 +111,37 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     fontWeight: "600",
   },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#000" },
-  moreText: { fontSize: 14, color: "purple", fontWeight: "600" },
+  sectionHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    paddingHorizontal: 16, 
+    marginTop: 20 
+  },
+  sectionTitle: { 
+    fontSize: 16, 
+    fontWeight: "700", 
+    color: "#000" 
+  },
+  moreText: { 
+    fontSize: 14, 
+    color: "purple", 
+    fontWeight: "600" 
+  },
   
-  // Materials Grid - Updated Styles
-  materialsContainer: { paddingHorizontal: 16, marginTop: 10 },
-  materialsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15 },
-  materialItem: { width: (width - 48) / 4, alignItems: "center" },
+  // Materials Grid
+  materialsContainer: { 
+    paddingHorizontal: 16, 
+    marginTop: 10 
+  },
+  materialsRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginBottom: 15 
+  },
+  materialItem: { 
+    width: (width - 48) / 4, 
+    alignItems: "center" 
+  },
   materialImageContainer: {
     width: 60, 
     height: 60, 
@@ -137,22 +223,11 @@ const styles = StyleSheet.create({
     fontWeight: "600" 
   },
   
-  categoryList: { marginTop: 10, paddingHorizontal: 16 },
-  categoryCard: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    backgroundColor: "#fff", 
-    borderRadius: 12, 
-    padding: 12, 
-    marginBottom: 12 
+  // Trending Products
+  materialScroll: { 
+    paddingHorizontal: 12, 
+    paddingVertical: 10 
   },
-  categoryIcon: { width: 40, height: 40, marginRight: 12 },
-  categorySub: { fontSize: 13, color: "#444" },
-  categoryTitle: { fontSize: 16, fontWeight: "700", color: "#000" },
-  detailBtn: { backgroundColor: "#d17d00", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  detailText: { fontSize: 12, color: "#fff", fontWeight: "600" },
-  
-  materialScroll: { paddingHorizontal: 12, paddingVertical: 10 },
   materialCard: { 
     width: 110, 
     height: 150, 
@@ -172,45 +247,141 @@ const styles = StyleSheet.create({
     justifyContent: "center", 
     alignItems: "center" 
   },
-  materialImage: { width: '100%', height: '100%' },
-  materialText: { fontSize: 10, fontWeight: "600", color: "#000" },
+  materialImage: { 
+    width: '100%', 
+    height: '100%' 
+  },
+  materialText: { 
+    fontSize: 10, 
+    fontWeight: "600", 
+    color: "#000" 
+  },
   
-  enquiredScroll: { paddingHorizontal: 12, paddingVertical: 10 },
+  // Most Enquired Products - REDUCED SIZES
+  mostEnquiredContainer: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 10,
+    backgroundColor: 'transparent',
+  },
+  enquiredScrollBackground: { 
+    width: "100%", 
+    paddingVertical: 12, // Reduced vertical padding
+  },
+  enquiredScroll: { 
+    paddingLeft: 6, // Reduced padding
+    paddingRight: 2,
+    paddingVertical: 8,
+  },
   enquiredCard: { 
-    width: 120, 
-    height: 160, 
-    backgroundColor: "#f8e5c0", 
-    marginRight: 14, 
+    width: 100, // Reduced from 130
+    height: 140, // Reduced from 170
+    backgroundColor: "rgba(248, 229, 192, 0.95)",
+    marginRight: 10, // Reduced margin
+    marginLeft: 2,
     alignItems: "center", 
-    borderTopLeftRadius: 60, 
-    borderTopRightRadius: 60, 
-    borderTopColor: "red", 
-    borderWidth: 0.5, 
-    borderColor: "brown" 
+    borderTopLeftRadius: 50, // Reduced border radius
+    borderTopRightRadius: 50, 
+    borderWidth: 1, 
+    borderColor: "rgba(181, 95, 7, 0.3)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 }, // Reduced shadow
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   enquiredImageWrapper: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 4, 
-    marginTop: 25, 
+    width: 65, // Reduced from 85
+    height: 65, 
+    borderRadius: 6, 
+    marginTop: 18, // Reduced margin
     backgroundColor: "#fff", 
+    justifyContent: "center", 
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(181, 95, 7, 0.1)",
+  },
+  enquiredImage: { 
+    width: "100%", 
+    height: "100%", 
+    resizeMode: "cover", 
+    borderRadius: 6, // Reduced border radius
+  },
+  enquiredTextWrapper: { 
+    backgroundColor: "#fff", 
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, 
+    borderRadius: 4, 
+    marginTop: 20, // Reduced margin
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, // Reduced shadow opacity
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  enquiredText: { 
+    fontSize: 8, // Reduced from 9
+    fontWeight: "600", 
+    color: "#9a5f07ff", 
+    textAlign: "center" 
+  },
+  
+  // Most Searched Products
+  mostSearchedContainer: {
+    marginHorizontal: 16,
+  },
+  
+  // Hire Categories
+  categoryList: { 
+    marginTop: 10, 
+    paddingHorizontal: 16 
+  },
+  categoryCard: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    padding: 12, 
+    marginBottom: 12 
+  },
+  categoryIcon: { 
+    width: 40, 
+    height: 40, 
+    marginRight: 12 
+  },
+  categorySub: { 
+    fontSize: 13, 
+    color: "#444" 
+  },
+  categoryTitle: { 
+    fontSize: 16, 
+    fontWeight: "700", 
+    color: "#000" 
+  },
+  detailBtn: { 
+    backgroundColor: "#d17d00", 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 6 
+  },
+  detailText: { 
+    fontSize: 12, 
+    color: "#fff", 
+    fontWeight: "600" 
+  },
+  
+  // Brands Section
+  brandsScroll: { 
+    alignItems: "center", 
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+  },
+  brandCard: { 
+    marginRight: 20, 
     justifyContent: "center", 
     alignItems: "center" 
   },
-  enquiredImage: { width: "100%", height: "100%", resizeMode: "cover",borderRadius: 8, },
-  enquiredTextWrapper: { 
-    backgroundColor: "#fff", 
-    paddingHorizontal: 10, 
-    paddingVertical: 3, 
-    borderRadius: 3, 
-    marginTop: 30 
-  },
-  enquiredText: { fontSize: 8, fontWeight: "600", color: "#9a5f07ff", textAlign: "center" },
-  enquiredScrollBackground: { width: "100%", paddingVertical: 10 },
-  
-  // Brands Section
-  brandsScroll: { alignItems: "center", paddingVertical: 15 },
-  brandCard: { marginRight: 20, justifyContent: "center", alignItems: "center" },
   brandImage: { 
     width: 110, 
     height: 110, 
@@ -220,11 +391,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff" 
   },
 
+  // Footer
   footer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
-    height: 60,
+    height: 70,
     borderTopWidth: 1,
     borderTopColor: "#ddd",
     backgroundColor: "#fff",
@@ -233,16 +405,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: -2 },
     shadowRadius: 4,
+    paddingHorizontal: 20,
   },
   footerTab: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    width: 60,
   },
   footerText: {
     fontSize: 12,
     marginTop: 2,
     color: "#888",
+    fontWeight: "600",
+  },
+  centerEnquiryButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -25,
+  },
+  centerEnquiryCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FF8800",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  centerEnquiryText: {
+    fontSize: 12,
+    marginTop: 5,
+    color: "#FF8800",
     fontWeight: "600",
   },
 });
