@@ -912,12 +912,12 @@ const Home = () => {
             onLocationLoadingChange={setIsLocationLoading}
           />
           
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             style={styles.profileIcon}
             onPress={handleProfilePress}
           >
             <Ionicons name="person-circle" size={22} color="#fff" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <TouchableOpacity onPress={handleSearchPress}>
@@ -1119,10 +1119,18 @@ const Home = () => {
       </View>
 
 {/* Footer */}
+{/* Footer */}
 <View style={styles.footer}>
+  {/* Home Tab */}
   <TouchableOpacity style={styles.footerTab}>
     <MaterialIcons name="home" size={24} color="#FF8800" />
     <Text style={[styles.footerText, { color: "#FF8800" }]}>Home</Text>
+  </TouchableOpacity>
+  
+  {/* Profile Tab */}
+  <TouchableOpacity style={styles.footerTab} onPress={handleProfilePress}>
+    <MaterialIcons name="person" size={24} color="#888" />
+    <Text style={styles.footerText}>Profile</Text>
   </TouchableOpacity>
   
   {/* Center Circular My Enquiry Button */}
@@ -1133,6 +1141,13 @@ const Home = () => {
     <Text style={styles.centerEnquiryText}>My Enquiry</Text>
   </TouchableOpacity>
   
+  {/* Hot Enquiry Tab */}
+  <TouchableOpacity style={styles.footerTab} onPress={handleHotEnquiryPress}>
+    <MaterialIcons name="whatshot" size={24} color="#888" />
+    <Text style={styles.footerText}>Hot Enquiry</Text>
+  </TouchableOpacity>
+  
+  {/* Menu Tab */}
   <TouchableOpacity style={styles.footerTab} onPress={toggleDrawer}>
     <MaterialIcons name="menu" size={24} color="#888" />
     <Text style={styles.footerText}>Menu</Text>
