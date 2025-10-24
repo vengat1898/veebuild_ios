@@ -1119,7 +1119,6 @@ const Home = () => {
       </View>
 
 {/* Footer */}
-{/* Footer */}
 <View style={styles.footer}>
   {/* Home Tab */}
   <TouchableOpacity style={styles.footerTab}>
@@ -1133,18 +1132,18 @@ const Home = () => {
     <Text style={styles.footerText}>Profile</Text>
   </TouchableOpacity>
   
-  {/* Center Circular My Enquiry Button */}
-  <TouchableOpacity style={styles.centerEnquiryButton} onPress={handleMyEnquiryPress}>
+  {/* Center Circular Hot Enquiry Button */}
+  <TouchableOpacity style={styles.centerEnquiryButton} onPress={handleHotEnquiryPress}>
     <View style={styles.centerEnquiryCircle}>
-      <MaterialIcons name="list-alt" size={24} color="#fff" />
+      <MaterialIcons name="whatshot" size={24} color="#fff" />
     </View>
-    <Text style={styles.centerEnquiryText}>My Enquiry</Text>
+    <Text style={styles.centerEnquiryText}>Hot Enquiry</Text>
   </TouchableOpacity>
   
-  {/* Hot Enquiry Tab */}
-  <TouchableOpacity style={styles.footerTab} onPress={handleHotEnquiryPress}>
-    <MaterialIcons name="whatshot" size={24} color="#888" />
-    <Text style={styles.footerText}>Hot Enquiry</Text>
+  {/* My Enquiry Tab */}
+  <TouchableOpacity style={styles.footerTab} onPress={handleMyEnquiryPress}>
+    <MaterialIcons name="list-alt" size={24} color="#888" />
+    <Text style={styles.footerText}>My Enquiry</Text>
   </TouchableOpacity>
   
   {/* Menu Tab */}

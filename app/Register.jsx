@@ -202,16 +202,6 @@ export default function Register() {
             />
           </View>
 
-          <View style={styles.locationStatus}>
-            {locationLoading ? (
-              <ActivityIndicator size="small" color="#1e90ff" />
-            ) : location ? (
-              <Text style={styles.locationText}>📍 Location captured</Text>
-            ) : (
-              <Text style={styles.locationText}>⚠️ Using default location</Text>
-            )}
-          </View>
-
           <TouchableOpacity 
             style={styles.button} 
             onPress={handleRegister}

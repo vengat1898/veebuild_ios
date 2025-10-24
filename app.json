@@ -10,9 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.app.veebuild",
+      "bundleIdentifier": "app.veebuild.com",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Veebuild needs access to your camera to capture photos for hot enquiries",
+        "NSLocationWhenInUseUsageDescription": "Veebuild uses your location to show nearby shop owners and dealers for products."
       }
     },
     "android": {
@@ -51,7 +53,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "794ee8f3-0193-4dfa-92f7-ff9b4b56632a"
+        "projectId": "4eef24be-681a-4f28-b55c-d3f22b25d268"
       }
     }
   }

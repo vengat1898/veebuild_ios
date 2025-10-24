@@ -56,11 +56,11 @@ const MenuDrawer = ({
       label: "Terms and Conditions",
       route: "/components/TermsAndConditions",
     },
-    // {
-    //   icon: "privacy-tip",
-    //   label: "Privacy Policy",
-    //   // route: "/components/PrivacyPolicy",
-    // },
+    {
+      icon: "settings",
+      label: "Settings",
+      route: "/components/Settings",
+    },
     {
       icon: "exit-to-app",
       label: "Logout",
@@ -158,7 +158,7 @@ const MenuDrawer = ({
         {/* Footer */}
         <View style={drawerStyles.footer}>
           <Text style={drawerStyles.versionText}>Version 1.0.0</Text>
-          <Text style={drawerStyles.copyrightText}>© 2024 VeeBuilder</Text>
+          <Text style={drawerStyles.copyrightText}>© 2024 Vee Build</Text>
         </View>
       </View>
     </>
