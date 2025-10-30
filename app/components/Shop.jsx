@@ -20,9 +20,10 @@ import { SessionContext } from '../../context/SessionContext.jsx';
 import api from "../services/api.jsx";
 
 export default function Shop() {
-  const { session } = useContext(SessionContext);
+  const { session, isSessionLoaded, clearSession } = useContext(SessionContext);
   const router = useRouter();
   const params = useLocalSearchParams();
+  
   console.log('=============================================================');
   console.log('Shop screen received params:', params);
   console.log('=============================================================');
@@ -40,7 +41,113 @@ export default function Shop() {
   const [error, setError] = useState(null);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const { cat_id, customer_id: paramCustomerId } = params;
+  
+  // Check if user is a guest (no proper mobile number)
+  const isGuestUser = !session || 
+                     !session.mobile || 
+                     session.mobile === '' || 
+                     session.id === 'guest_user' || 
+                     session.type === 'guest';
+
   const customer_id = paramCustomerId || session?.id;
+
+  // Handle sign in for guest users - COMPLETE NAVIGATION RESET
+  const handleSignIn = async () => {
+    console.log("Sign in clicked from Shop");
+    
+    // Clear any guest session before navigating to login
+    if (isGuestUser) {
+      await clearSession();
+    }
+    
+    // COMPLETE NAVIGATION RESET - This will clear the entire stack
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    
+    setTimeout(() => {
+      router.replace({
+        pathname: '/Login',
+        params: { 
+          fromShop: 'true',
+          returnParams: JSON.stringify(params) // Pass all params to return after login
+        }
+      });
+    }, 100);
+  };
+
+  // Handle back navigation for guest users
+  const handleBackPress = () => {
+    // Complete reset to home
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    setTimeout(() => {
+      router.replace('/components/Home');
+    }, 100);
+  };
+
+  // Loading states
+  if (!isSessionLoaded) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerText}>Shop</Text>
+        </View>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#8B4513" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show login required screen for guest users
+  if (isGuestUser) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerText}>Shop</Text>
+          <View style={styles.headerIcon}>
+            <Ionicons name="storefront" size={24} color="white" />
+          </View>
+        </View>
+
+        <View style={styles.guestContainer}>
+          <View style={styles.guestIconContainer}>
+            <Ionicons name="log-in-outline" size={80} color="#8B4513" />
+          </View>
+          
+          <Text style={styles.guestTitle}>Login Required</Text>
+          
+          <Text style={styles.guestMessage}>
+            You need to be logged in to browse shops and contact vendors. Please sign in to access this feature.
+          </Text>
+
+          <TouchableOpacity 
+            style={styles.signInButton}
+            onPress={handleSignIn}
+          >
+            <Ionicons name="log-in" size={20} color="white" style={styles.signInIcon} />
+            <Text style={styles.signInButtonText}>Sign In</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.backButtonGuest}
+            onPress={handleBackPress}
+          >
+            <Text style={styles.backButtonText}>Go Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const handleCallPress = (mobileNumber) => {
     console.log('=== CALL FUNCTION ===');
@@ -777,8 +884,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    // borderBottomLeftRadius: 20,
-    // borderBottomRightRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -801,6 +906,78 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 20,
+  },
+
+  // Guest user styles
+  guestContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    backgroundColor: '#FAF0E6',
+  },
+  guestIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF8DC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 25,
+    borderWidth: 3,
+    borderColor: '#D2B48C',
+  },
+  guestTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#8B4513',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  guestMessage: {
+    fontSize: 16,
+    color: '#5D4037',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  signInButton: {
+    flexDirection: 'row',
+    backgroundColor: '#8B4513',
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+    width: '80%',
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  signInIcon: {
+    marginRight: 10,
+  },
+  signInButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonGuest: {
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+    width: '80%',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#8B4513',
+    fontSize: 16,
+    fontWeight: '500',
   },
 
   // Search Bar
