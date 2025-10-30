@@ -3,14 +3,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SessionContext } from '../../context/SessionContext';
@@ -19,7 +19,7 @@ import api from "../services/api";
 export default function HirepeopleEnquiry() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { session, isSessionLoaded } = useContext(SessionContext);
+  const { session, isSessionLoaded, clearSession } = useContext(SessionContext);
 
   const { 
     cat_id, 
@@ -37,13 +37,114 @@ export default function HirepeopleEnquiry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [city, setCity] = useState('');
 
+  // Check if user is a guest (no proper mobile number)
+  const isGuestUser = !session || 
+                     !session.mobile || 
+                     session.mobile === '' || 
+                     session.id === 'guest_user' || 
+                     session.type === 'guest';
+
+  // Handle sign in for guest users - COMPLETE NAVIGATION RESET
+  const handleSignIn = async () => {
+    console.log("Sign in clicked from Hire People Enquiry");
+    
+    // Clear any guest session before navigating to login
+    if (isGuestUser) {
+      await clearSession();
+    }
+    
+    // COMPLETE NAVIGATION RESET - This will clear the entire stack
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    
+    setTimeout(() => {
+      router.replace({
+        pathname: '/Login',
+        params: { 
+          fromHireEnquiry: 'true',
+          returnParams: JSON.stringify(params) // Pass all params to return after login
+        }
+      });
+    }, 100);
+  };
+
+  // Handle back navigation for guest users
+  const handleBackPress = () => {
+    // Complete reset to home
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    setTimeout(() => {
+      router.replace('/components/Home');
+    }, 100);
+  };
+
   useEffect(() => {
-    if (isSessionLoaded && session) {
+    if (isSessionLoaded && session && !isGuestUser) {
       setName(session.name || '');
       setMobile(session.mobile || '');
       setCity(session.city || professionalCity || '');
     }
-  }, [isSessionLoaded, session]);
+  }, [isSessionLoaded, session, isGuestUser]);
+
+  // Loading states
+  if (!isSessionLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B4513" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // Show login required screen for guest users
+  if (isGuestUser) {
+    return (
+      <View style={{ flex: 1 }}>
+        <LinearGradient
+          colors={['#8B4513', '#A0522D', '#D2691E']}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerText}>Send Enquiry</Text>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.guestContainer}>
+          <View style={styles.guestIconContainer}>
+            <Ionicons name="log-in-outline" size={80} color="#8B4513" />
+          </View>
+          
+          <Text style={styles.guestTitle}>Login Required</Text>
+          
+          <Text style={styles.guestMessage}>
+            You need to be logged in to submit professional enquiries. Please sign in to access this feature.
+          </Text>
+
+          <TouchableOpacity 
+            style={styles.signInButton}
+            onPress={handleSignIn}
+          >
+            <Ionicons name="log-in" size={20} color="white" style={styles.signInIcon} />
+            <Text style={styles.signInButtonText}>Sign In</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.backButtonGuest}
+            onPress={handleBackPress}
+          >
+            <Text style={styles.backButtonText}>Go Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -74,17 +175,14 @@ export default function HirepeopleEnquiry() {
         Alert.alert('Success', 'Enquiry submitted successfully', [
           { 
             text: 'OK', 
-            onPress: () => router.push({
-              pathname: '/components/Home',
-              params: {
-                id: land_id || v_id,
-                title: product_name,
-                cat_id,
-                v_id,
-                user_id: session.id,
-                customer_id
+            onPress: () => {
+              if (router.dismissAll) {
+                router.dismissAll();
               }
-            })
+              setTimeout(() => {
+                router.replace('/components/Home');
+              }, 100);
+            }
           }
         ]);
       } else {
@@ -295,5 +393,87 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginLeft: 4,
+  },
+  // Guest user styles
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: '#FAF0E6'
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#8B4513',
+    fontSize: 16,
+  },
+  guestContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    backgroundColor: '#FAF0E6',
+  },
+  guestIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF8DC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 25,
+    borderWidth: 3,
+    borderColor: '#D2B48C',
+  },
+  guestTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#8B4513',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  guestMessage: {
+    fontSize: 16,
+    color: '#5D4037',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  signInButton: {
+    flexDirection: 'row',
+    backgroundColor: '#8B4513',
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+    width: '80%',
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  signInIcon: {
+    marginRight: 10,
+  },
+  signInButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonGuest: {
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+    width: '80%',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#8B4513',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

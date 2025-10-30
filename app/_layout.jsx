@@ -35,7 +35,7 @@ function BackHandlerWrapper({ children }) {
       // Routes where we want to show exit confirmation
       const exitRoutes = [
         '/components/Home',
-        '/components/Login',
+        '/Login',
         '/components/Otp',
         '/components/Register',
         

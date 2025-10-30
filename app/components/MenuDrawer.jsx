@@ -1,7 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useContext } from "react";
 import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-
+import { SessionContext } from "../../context/SessionContext";
 const { width, height } = Dimensions.get("window");
 
 const MenuDrawer = ({ 
@@ -12,15 +13,36 @@ const MenuDrawer = ({
   session 
 }) => {
   const router = useRouter();
+  const {  isSessionLoaded, clearSession } = useContext(SessionContext);
 
   const handleNavigation = (route) => {
     setDrawerOpen(false);
-    if (route) {
-      router.push(route);
-    }
+    setTimeout(() => {
+      if (route) {
+        router.push(route);
+      }
+    }, 100);
   };
 
-  const menuItems = [
+   // In MenuDrawer.jsx
+const handleSignIn = async () => {
+  console.log("Sign in clicked");
+  
+  // Clear any guest session before navigating to login
+  if (session?.isGuest || session?.type === 'guest') {
+    await clearSession(); // Make sure clearSession is available in props
+  }
+  
+  setDrawerOpen(false);
+  
+  // Use a small timeout to ensure navigation happens after state updates
+  setTimeout(() => {
+    router.replace('/Login');
+  }, 100);
+};
+
+  // Base menu items that are always shown
+  const baseMenuItems = [
     {
       icon: "home",
       label: "Home",
@@ -35,11 +57,6 @@ const MenuDrawer = ({
       icon: "contact-mail",
       label: "Contact Us",
       route: "/components/Contactus",
-    },
-    {
-      icon: "assignment",
-      label: "My Enquiry",
-      route: "/components/Myenquiry",
     },
     {
       icon: "share",
@@ -61,12 +78,48 @@ const MenuDrawer = ({
       label: "Settings",
       route: "/components/Settings",
     },
-    {
+  ];
+
+  // In MenuDrawer.jsx - update the getConditionalMenuItems function
+const getConditionalMenuItems = () => {
+  // Properly check if user is logged in (not guest)
+  const isLoggedIn = session && 
+                    session.id && 
+                    session.id !== 'guest_user' && 
+                    session.mobile && 
+                    session.mobile !== '';
+
+  const conditionalItems = [];
+
+  // Add "My Enquiry" only if properly logged in
+  if (isLoggedIn) {
+    conditionalItems.push({
+      icon: "assignment",
+      label: "My Enquiry",
+      route: "/components/Myenquiry",
+    });
+  }
+
+  // Add either Logout or Sign In
+  if (isLoggedIn) {
+    conditionalItems.push({
       icon: "exit-to-app",
       label: "Logout",
       action: handleLogout,
-    },
-  ];
+    });
+  } else {
+    conditionalItems.push({
+      icon: "login",
+      label: "Sign In",
+      action: handleSignIn,
+    });
+  }
+
+  return conditionalItems;
+};
+
+  // Combine base items with conditional items
+  const menuItems = [...baseMenuItems, ...getConditionalMenuItems()];
 
   if (!drawerOpen) return null;
 
@@ -97,10 +150,17 @@ const MenuDrawer = ({
               style={drawerStyles.logo}
             />
           </View>
-          {session?.name && (
+          {session?.name && session?.mobile ? (
             <View style={drawerStyles.userInfo}>
               <Text style={drawerStyles.userGreeting}>Welcome</Text>
               <Text style={drawerStyles.userName}>{session.name}</Text>
+              <Text style={drawerStyles.userEmail}>{session.mobile}</Text>
+            </View>
+          ) : (
+            <View style={drawerStyles.userInfo}>
+              <Text style={drawerStyles.userGreeting}>Welcome</Text>
+              <Text style={drawerStyles.userName}>Guest User</Text>
+              <Text style={drawerStyles.signInPrompt}>Sign in to access all features</Text>
             </View>
           )}
         </View>
@@ -117,7 +177,7 @@ const MenuDrawer = ({
                 key={index}
                 style={[
                   drawerStyles.menuItem,
-                  item.label === "Logout" && drawerStyles.logoutItem
+                  (item.label === "Logout" || item.label === "Sign In") && drawerStyles.authItem
                 ]}
                 onPress={() => {
                   if (item.action) {
@@ -130,17 +190,17 @@ const MenuDrawer = ({
                 <View style={drawerStyles.menuItemLeft}>
                   <View style={[
                     drawerStyles.iconContainer,
-                    item.label === "Logout" && drawerStyles.logoutIconContainer
+                    (item.label === "Logout" || item.label === "Sign In") && drawerStyles.authIconContainer
                   ]}>
                     <MaterialIcons 
                       name={item.icon} 
                       size={20} 
-                      color={item.label === "Logout" ? "#D32F2F" : "#8B4513"} 
+                      color={(item.label === "Logout" || item.label === "Sign In") ? "#1976D2" : "#8B4513"} 
                     />
                   </View>
                   <Text style={[
                     drawerStyles.menuText,
-                    item.label === "Logout" && drawerStyles.logoutText
+                    (item.label === "Logout" || item.label === "Sign In") && drawerStyles.authText
                   ]}>
                     {item.label}
                   </Text>
@@ -148,7 +208,7 @@ const MenuDrawer = ({
                 <MaterialIcons 
                   name="chevron-right" 
                   size={18} 
-                  color={item.label === "Logout" ? "#D32F2F" : "#A0522D"} 
+                  color={(item.label === "Logout" || item.label === "Sign In") ? "#1976D2" : "#A0522D"} 
                 />
               </TouchableOpacity>
             ))}
@@ -169,14 +229,14 @@ const drawerStyles = {
   container: {
     position: 'absolute',
     top: 0,
-    left: 0, // Changed from right to left
-    width: width * 0.75, // Reduced width from 85% to 75%
+    left: 0,
+    width: width * 0.75,
     height: height,
     backgroundColor: '#FFF8F0',
     zIndex: 1000,
     shadowColor: '#000',
     shadowOffset: {
-      width: 4, // Changed from -4 to 4 for left side shadow
+      width: 4,
       height: 0,
     },
     shadowOpacity: 0.3,
@@ -185,19 +245,19 @@ const drawerStyles = {
   },
   header: {
     backgroundColor: '#8B4513',
-    paddingVertical: 25, // Reduced from 40
+    paddingVertical: 25,
     paddingHorizontal: 20,
-    borderBottomRightRadius: 20, // Changed from borderBottomRightRadius
+    borderBottomRightRadius: 20,
     marginBottom: 5,
-    paddingTop: 50, // Reduced from 60
+    paddingTop: 50,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 15, // Reduced from 20
+    marginBottom: 15,
   },
   logo: {
-    width: 160, // Reduced from 200
-    height: 50, // Reduced from 70
+    width: 160,
+    height: 50,
     resizeMode: 'contain',
     tintColor: '#FFFFFF',
   },
@@ -205,22 +265,29 @@ const drawerStyles = {
     alignItems: 'center',
   },
   userGreeting: {
-    fontSize: 13, // Reduced from 14
+    fontSize: 13,
     color: '#F5DEB3',
     fontWeight: '400',
     marginBottom: 3,
   },
   userName: {
-    fontSize: 16, // Reduced from 20
+    fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
     marginBottom: 2,
     textAlign: 'center',
   },
   userEmail: {
-    fontSize: 11, // Reduced from 12
+    fontSize: 11,
     color: '#F5DEB3',
     fontWeight: '400',
+  },
+  signInPrompt: {
+    fontSize: 11,
+    color: '#F5DEB3',
+    fontWeight: '400',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   scrollContainer: {
     flex: 1,
@@ -236,9 +303,9 @@ const drawerStyles = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15, // Reduced from 18
-    paddingHorizontal: 20, // Reduced from 25
-    marginHorizontal: 12, // Reduced from 15
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    marginHorizontal: 12,
     marginVertical: 2,
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
@@ -251,10 +318,10 @@ const drawerStyles = {
     shadowRadius: 2,
     elevation: 2,
   },
-  logoutItem: {
-    backgroundColor: '#FFEBEE',
-    borderLeftWidth: 3, // Reduced from 4
-    borderLeftColor: '#D32F2F',
+  authItem: {
+    backgroundColor: '#E3F2FD',
+    borderLeftWidth: 3,
+    borderLeftColor: '#1976D2',
     marginTop: 8,
   },
   menuItemLeft: {
@@ -263,42 +330,42 @@ const drawerStyles = {
     flex: 1,
   },
   iconContainer: {
-    width: 36, // Reduced from 40
-    height: 36, // Reduced from 40
-    borderRadius: 8, // Reduced from 10
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#F5E6D3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12, // Reduced from 15
+    marginRight: 12,
   },
-  logoutIconContainer: {
-    backgroundColor: '#FFCDD2',
+  authIconContainer: {
+    backgroundColor: '#BBDEFB',
   },
   menuText: {
     flex: 1,
-    fontSize: 15, // Reduced from 16
+    fontSize: 15,
     color: '#5D4037',
     fontWeight: '500',
   },
-  logoutText: {
-    color: '#D32F2F',
+  authText: {
+    color: '#1976D2',
     fontWeight: '600',
   },
   footer: {
-    padding: 20, // Reduced from 25
+    padding: 20,
     borderTopWidth: 1,
     borderTopColor: '#E8D5C4',
     backgroundColor: '#FFF8F0',
   },
   versionText: {
-    fontSize: 11, // Reduced from 12
+    fontSize: 11,
     color: '#A1887F',
     fontWeight: '400',
     textAlign: 'center',
     marginBottom: 3,
   },
   copyrightText: {
-    fontSize: 9, // Reduced from 10
+    fontSize: 9,
     color: '#A1887F',
     fontWeight: '400',
     textAlign: 'center',

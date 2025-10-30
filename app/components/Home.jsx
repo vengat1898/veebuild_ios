@@ -174,7 +174,7 @@ const Home = () => {
   // Location permission and fetching
   const requestLocationPermission = useCallback(async () => {
     if (!mounted || (__DEV__ && Platform.OS === 'ios')) {
-      console.log('Skipping location request in development build');
+      // console.log('Skipping location request in development build');
       return;
     }
 
@@ -256,7 +256,7 @@ const Home = () => {
         "https://veebuilds.com/mobile/maincategory.php"
       );
       
-      console.log('📦 Materials Response:', response.data);
+      // console.log('📦 Materials Response:', response.data);
       
       if (response.data.result === "Success") {
         const materialsWithImages = response.data.storeList || [];
@@ -361,7 +361,7 @@ const Home = () => {
         { timeout: 8000 }
       );
       
-      console.log('🏷️ Brands API Response:', response.data);
+      // console.log('🏷️ Brands API Response:', response.data);
       
       if (response.data.status === true && mounted) {
         // Convert the img object to array format for easier mapping
@@ -408,12 +408,12 @@ const Home = () => {
         }
       );
       
-      console.log('👷 Top Hire Categories Response:', response.data);
+      // console.log('👷 Top Hire Categories Response:', response.data);
       
       if (response.data?.storeList && Array.isArray(response.data.storeList) && mounted) {
         // Take only first 3 categories for home screen
         const topCategories = response.data.storeList.slice(0, 3);
-        console.log('✅ Top 3 Hire Categories:', topCategories);
+        // console.log('✅ Top 3 Hire Categories:', topCategories);
         setHireCategories(topCategories);
         return topCategories;
       } else {
