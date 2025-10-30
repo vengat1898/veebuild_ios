@@ -74,7 +74,7 @@ export default function Contactus() {
               <View style={styles.contactIcon}>
                 <FontAwesome name="globe" size={18} color="#a1887f" />
               </View>
-              <TouchableOpacity onPress={() => Linking.openURL('https://minsway.in/webteam/vee_construction/')}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://veebuild.com')}>
                 <Text style={styles.linkText}>Visit Our Website</Text>
               </TouchableOpacity>
             </View>

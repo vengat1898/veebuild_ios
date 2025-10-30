@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import api from "../services/api";
 
@@ -19,6 +19,32 @@ export default function Hirepeople() {
   const [filteredProfessions, setFilteredProfessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  
+  // Tap prevention state
+  const [isProcessingTap, setIsProcessingTap] = useState(false);
+
+  // Tap debouncing function
+  const withTapPrevention = useCallback((callback) => {
+    return async (...args) => {
+      if (isProcessingTap) {
+        console.log('🛑 Tap prevented - already processing');
+        return;
+      }
+
+      setIsProcessingTap(true);
+      
+      try {
+        await callback(...args);
+      } catch (error) {
+        console.error('Error in tap handler:', error);
+      } finally {
+        // Reset after a short delay to prevent rapid successive taps
+        setTimeout(() => {
+          setIsProcessingTap(false);
+        }, 800);
+      }
+    };
+  }, [isProcessingTap]);
 
   // Fetch all professions
   const fetchProfessions = async () => {
@@ -160,8 +186,8 @@ export default function Hirepeople() {
     }
   };
 
-  // Navigate with professionals data
-  const goToDetails = async (profession) => {
+  // Navigate with professionals data - with tap prevention
+  const goToDetails = withTapPrevention(async (profession) => {
     console.log('=====================================');
     console.log('🧭 NAVIGATION TO DETAILS');
     console.log('=====================================');
@@ -194,7 +220,17 @@ export default function Hirepeople() {
     console.log('✅ NAVIGATION COMPLETED');
     console.log('⏰ Timestamp:', new Date().toLocaleString());
     console.log('=====================================');
-  };
+  });
+
+  // Back button handler with tap prevention
+  const handleBackPress = withTapPrevention(() => {
+    router.back();
+  });
+
+  // Clear search handler with tap prevention
+  const handleClearSearch = withTapPrevention(() => {
+    handleSearch('');
+  });
 
   return (
     <View style={styles.container}>
@@ -205,7 +241,11 @@ export default function Hirepeople() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={handleBackPress} 
+          style={styles.backButton}
+          disabled={isProcessingTap}
+        >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -226,7 +266,11 @@ export default function Hirepeople() {
           placeholderTextColor="#999"
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')} style={styles.clearButton}>
+          <TouchableOpacity 
+            onPress={handleClearSearch} 
+            style={styles.clearButton}
+            disabled={isProcessingTap}
+          >
             <Ionicons name="close-circle" size={20} color="#999" />
           </TouchableOpacity>
         )}
@@ -253,8 +297,12 @@ export default function Hirepeople() {
             filteredProfessions.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.professionItem}
+                style={[
+                  styles.professionItem,
+                  isProcessingTap && styles.disabledItem
+                ]}
                 onPress={() => goToDetails(item)}
+                disabled={isProcessingTap}
               >
                 <View style={styles.professionIcon}>
                   <Ionicons name="briefcase-outline" size={20} color="#8B4513" />
@@ -263,7 +311,11 @@ export default function Hirepeople() {
                   <Text style={styles.professionText}>{item.title}</Text>
                   <Text style={styles.professionSubtext}>Tap to view professionals</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#8B4513" />
+                <Ionicons 
+                  name="chevron-forward" 
+                  size={20} 
+                  color={isProcessingTap ? "#CCC" : "#8B4513"} 
+                />
               </TouchableOpacity>
             ))
           )}
@@ -279,7 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF5F0' 
   },
   header: {
-    height: 160,
+    height: 130,
     paddingTop: 50,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -367,6 +419,9 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: '#F5E6D3',
+  },
+  disabledItem: {
+    opacity: 0.6,
   },
   professionIcon: {
     width: 40,

@@ -1,25 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useContext, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
@@ -39,6 +38,12 @@ export default function HotenquiryForm() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(false);
+
+  // Refs for keyboard handling
+  const scrollViewRef = useRef(null);
+  const inputRefs = useRef({});
+  const inputPositions = useRef({});
+  const modalScrollViewRef = useRef(null);
 
   // Loading states
   if (!isSessionLoaded) {
@@ -95,20 +100,12 @@ export default function HotenquiryForm() {
         throw new Error('No image URI provided');
       }
 
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
-        throw new Error('Selected image file does not exist');
-      }
-
-      console.log('File info:', fileInfo);
-
       // Generate filename similar to Android version
       const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, -5);
       const filename = `Profile_${timestamp}.jpg`;
 
       const formData = new FormData();
       
-      // Match Android's form data structure - using 'file' as key like Android
       const imageFile = {
         uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         type: 'image/jpeg',
@@ -116,7 +113,7 @@ export default function HotenquiryForm() {
       };
 
       console.log('Image file object:', imageFile);
-      formData.append('file', imageFile); // Changed from 'image' to 'file' to match Android
+      formData.append('file', imageFile);
 
       console.log('Uploading to hot_enquiry_file.php');
 
@@ -130,19 +127,15 @@ export default function HotenquiryForm() {
 
       console.log('Upload response:', response.data);
 
-      // The Android version expects the upload to succeed and returns the filename
-      // Adjust response handling based on actual API response
       if (response.data) {
-        // If API returns success indicator, check for it
         if (response.data.success !== undefined) {
           if (response.data.success === "1" || response.data.success === 1) {
             setImageUploadError(false);
-            return filename; // Return the filename we generated
+            return filename;
           } else {
             throw new Error(response.data.message || 'Upload failed');
           }
         } else {
-          // If no success indicator, assume success if we got a response
           setImageUploadError(false);
           return filename;
         }
@@ -172,7 +165,41 @@ export default function HotenquiryForm() {
     }
   };
 
-  // Updated Camera & Gallery functions with better error handling
+  // Improved keyboard handling functions
+  const handleInputLayout = (event, inputName) => {
+    // Store the position of each input for scrolling
+    inputPositions.current[inputName] = event.nativeEvent.layout;
+  };
+
+  const handleInputFocus = (inputName) => {
+    // Scroll to the input position with a small delay to ensure keyboard is up
+    setTimeout(() => {
+      const position = inputPositions.current[inputName];
+      if (position && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({
+          y: position.y - 100,
+          animated: true
+        });
+      }
+    }, 300);
+  };
+
+  const focusNextInput = (nextInput) => {
+    inputRefs.current[nextInput]?.focus();
+  };
+
+  // Handle modal search input focus
+  const handleModalSearchFocus = () => {
+    // Scroll modal content up when search input is focused
+    setTimeout(() => {
+      modalScrollViewRef.current?.scrollTo({
+        y: 0,
+        animated: true
+      });
+    }, 100);
+  };
+
+  // Camera & Gallery functions
   const handleCameraPick = async () => {
     try {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
@@ -238,7 +265,7 @@ export default function HotenquiryForm() {
     );
   };
 
-  // Updated submit function with better image upload handling
+  // Submit function
   const handleSubmit = async () => {
     if (isSubmitting) return;
     if (!message || !category) {
@@ -257,7 +284,6 @@ export default function HotenquiryForm() {
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
           
-          // Ask user if they want to continue without image
           const continueWithoutImage = await new Promise((resolve) => {
             Alert.alert(
               'Image Upload Failed',
@@ -325,71 +351,109 @@ export default function HotenquiryForm() {
         </View>
       </LinearGradient>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-            <TextInput 
-              style={styles.input} 
-              placeholder="Enter your name" 
-              value={name} 
-              onChangeText={setName} 
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter mobile number"
-              value={mobileNumber}
-              onChangeText={(text) => /^\d*$/.test(text) && setMobileNumber(text)}
-              keyboardType="numeric"
-              maxLength={10}
-            />
+          <ScrollView 
+            ref={scrollViewRef}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+          >
+            <View style={styles.formContainer}>
+              <TextInput 
+                ref={ref => inputRefs.current.name = ref}
+                style={styles.input} 
+                placeholder="Enter your name" 
+                value={name} 
+                onChangeText={setName}
+                onLayout={(e) => handleInputLayout(e, 'name')}
+                onFocus={() => handleInputFocus('name')}
+                returnKeyType="next"
+                onSubmitEditing={() => focusNextInput('mobile')}
+                blurOnSubmit={false}
+              />
+              
+              <TextInput
+                ref={ref => inputRefs.current.mobile = ref}
+                style={styles.input}
+                placeholder="Enter mobile number"
+                value={mobileNumber}
+                onChangeText={(text) => /^\d*$/.test(text) && setMobileNumber(text)}
+                keyboardType="numeric"
+                maxLength={10}
+                onLayout={(e) => handleInputLayout(e, 'mobile')}
+                onFocus={() => handleInputFocus('mobile')}
+                returnKeyType="next"
+                onSubmitEditing={() => setModalVisible(true)}
+                blurOnSubmit={false}
+              />
 
-            <TouchableOpacity style={styles.input} onPress={handleOpenModal} disabled={isSubmitting}>
-              <Text style={{ color: category ? '#000' : '#888', fontSize: 16 }}>
-                {category || 'Select category'}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.input} 
+                onPress={handleOpenModal} 
+                disabled={isSubmitting}
+                onLayout={(e) => handleInputLayout(e, 'category')}
+                onFocus={() => handleInputFocus('category')}
+              >
+                <Text style={{ color: category ? '#000' : '#888', fontSize: 16 }}>
+                  {category || 'Select category'}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.imageUploadBox, imageUploadError && styles.uploadError]} 
-              onPress={pickImage} 
-              disabled={isSubmitting}
-            >
-              {image ? (
-                <Image source={{ uri: image }} style={styles.uploadedImage} />
-              ) : (
-                <>
-                  <Ionicons 
-                    name={imageUploadError ? "warning-outline" : "cloud-upload-outline"} 
-                    size={30} 
-                    color={imageUploadError ? "#8B0000" : "#8B4513"} 
-                  />
-                  <Text style={{ color: imageUploadError ? "#8B0000" : "#8B4513", marginTop: 5, fontWeight: '500' }}>
-                    {imageUploadError ? "Upload Failed - Tap to retry" : "Upload Image"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.imageUploadBox, imageUploadError && styles.uploadError]} 
+                onPress={pickImage} 
+                disabled={isSubmitting}
+                onLayout={(e) => handleInputLayout(e, 'image')}
+              >
+                {image ? (
+                  <Image source={{ uri: image }} style={styles.uploadedImage} />
+                ) : (
+                  <>
+                    <Ionicons 
+                      name={imageUploadError ? "warning-outline" : "cloud-upload-outline"} 
+                      size={30} 
+                      color={imageUploadError ? "#8B0000" : "#8B4513"} 
+                    />
+                    <Text style={{ color: imageUploadError ? "#8B0000" : "#8B4513", marginTop: 5, fontWeight: '500' }}>
+                      {imageUploadError ? "Upload Failed - Tap to retry" : "Upload Image"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
-            <TextInput
-              style={[styles.input, styles.messageInput]}
-              placeholder="Enter your message"
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              numberOfLines={4}
-            />
+              <TextInput
+                ref={ref => inputRefs.current.message = ref}
+                style={[styles.input, styles.messageInput]}
+                placeholder="Enter your message"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                onLayout={(e) => handleInputLayout(e, 'message')}
+                onFocus={() => handleInputFocus('message')}
+                returnKeyType="done"
+                blurOnSubmit={true}
+              />
 
-            <TouchableOpacity 
-              style={[styles.continueButton, isSubmitting && styles.disabledButton]} 
-              onPress={handleSubmit} 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Submit Enquiry</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.continueButton, isSubmitting && styles.disabledButton]} 
+                onPress={handleSubmit} 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.buttonText}>Submit Enquiry</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -400,39 +464,58 @@ export default function HotenquiryForm() {
         transparent 
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalWrapper}>
-          <View style={styles.modalContainer}>
-            <TextInput 
-              placeholder="Search category..." 
-              style={styles.searchInput} 
-              value={searchText} 
-              onChangeText={setSearchText} 
-            />
-            <FlatList
-              data={filteredCategories}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.modalItem} 
-                  onPress={() => { 
-                    setCategory(item.title); 
-                    setModalVisible(false); 
-                    setSearchText(''); 
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>{item.title}</Text>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={<Text style={styles.noResultsText}>No categories found</Text>}
-            />
-            <TouchableOpacity 
-              onPress={() => setModalVisible(false)} 
-              style={styles.closeModal}
-            >
-              <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalWrapper}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalContainer}>
+              <TextInput 
+                placeholder="Search category..." 
+                style={styles.searchInput} 
+                value={searchText} 
+                onChangeText={setSearchText} 
+                autoFocus={true}
+                onFocus={handleModalSearchFocus}
+                returnKeyType="search"
+              />
+              <ScrollView 
+                ref={modalScrollViewRef}
+                style={styles.modalListContainer}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              >
+                <FlatList
+                  data={filteredCategories}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.modalItem} 
+                      onPress={() => { 
+                        setCategory(item.title); 
+                        setModalVisible(false); 
+                        setSearchText(''); 
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>{item.title}</Text>
+                    </TouchableOpacity>
+                  )}
+                  scrollEnabled={false} // Let the parent ScrollView handle scrolling
+                  ListEmptyComponent={
+                    <Text style={styles.noResultsText}>No categories found</Text>
+                  }
+                />
+              </ScrollView>
+              <TouchableOpacity 
+                onPress={() => setModalVisible(false)} 
+                style={styles.closeModal}
+              >
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -448,6 +531,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center',
     backgroundColor: '#FAF0E6'
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  formContainer: {
+    paddingHorizontal: 20, 
+    paddingBottom: 30, 
+    paddingTop: 20,
   },
   loginPrompt: { 
     fontSize: 16, 
@@ -494,11 +585,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', 
     fontSize: 20, 
     textAlign: 'center' 
-  },
-  body: { 
-    paddingHorizontal: 20, 
-    paddingBottom: 30, 
-    paddingTop: 20 
   },
   input: { 
     backgroundColor: 'white', 
@@ -577,7 +663,7 @@ const styles = StyleSheet.create({
   modalContainer: { 
     backgroundColor: 'white', 
     borderRadius: 15, 
-    maxHeight: '70%', 
+    maxHeight: '80%', // Increased height to accommodate keyboard
     padding: 15, 
     shadowColor: '#8B4513', 
     shadowOpacity: 0.2, 
@@ -586,6 +672,9 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderWidth: 1,
     borderColor: '#D2B48C'
+  },
+  modalListContainer: {
+    maxHeight: '70%', // Limit the list height to ensure close button is visible
   },
   searchInput: { 
     backgroundColor: '#FAF0E6', 

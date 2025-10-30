@@ -101,6 +101,9 @@ const Home = () => {
   const [appState, setAppState] = useState(AppState.currentState);
   const [mounted, setMounted] = useState(true);
 
+  // Tap prevention state
+  const [isProcessingTap, setIsProcessingTap] = useState(false);
+
   const brandsScrollRef = useRef(null);
   const scrollIntervalRef = useRef(null);
   const [currentBrandIndex, setCurrentBrandIndex] = useState(0);
@@ -113,6 +116,29 @@ const Home = () => {
     { id: 'brand4', localImage: require("../../assets/images/brand4.png") },
     { id: 'cement', localImage: require("../../assets/images/cement.png") },
   ];
+
+  // Tap debouncing function
+  const withTapPrevention = useCallback((callback) => {
+    return async (...args) => {
+      if (isProcessingTap) {
+        console.log('🛑 Tap prevented - already processing');
+        return;
+      }
+
+      setIsProcessingTap(true);
+      
+      try {
+        await callback(...args);
+      } catch (error) {
+        console.error('Error in tap handler:', error);
+      } finally {
+        // Reset after a short delay to prevent rapid successive taps
+        setTimeout(() => {
+          setIsProcessingTap(false);
+        }, 500);
+      }
+    };
+  }, [isProcessingTap]);
 
   // App state change handler
   useEffect(() => {
@@ -517,8 +543,8 @@ const Home = () => {
     };
   }, [brandsData.length]);
 
-  // Navigation handlers
-  const handleMoreMaterials = () => {
+  // Navigation handlers with tap prevention
+  const handleMoreMaterials = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
@@ -529,9 +555,9 @@ const Home = () => {
       console.error('❌ Navigation failed:', error);
       Alert.alert('Navigation Error', error.message);
     }
-  };
+  });
 
-  const handleMaterialPress = (material) => {
+  const handleMaterialPress = withTapPrevention((material) => {
     console.log('🎯 Material pressed:', material.title, 'ID:', material.id);
     if (userId) {
       if (scrollIntervalRef.current) {
@@ -552,10 +578,10 @@ const Home = () => {
     } else {
       Alert.alert('Error', 'User session not found');
     }
-  };
+  });
 
-  // Hire Category press handler
-  const handleCategoryPress = async (category) => {
+  // Hire Category press handler with tap prevention
+  const handleCategoryPress = withTapPrevention(async (category) => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
@@ -586,37 +612,37 @@ const Home = () => {
       console.error('Error fetching professionals:', error);
       Alert.alert('Error', 'Failed to load professionals. Please try again.');
     }
-  };
+  });
 
-  const handleProfilePress = () => {
+  const handleProfilePress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
     router.push('/components/profile');
-  };
+  });
 
-  const handleSearchPress = () => {
+  const handleSearchPress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
     router.push('/components/Search');
-  };
+  });
 
-  const handleHirePeoplePress = () => {
+  const handleHirePeoplePress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
     router.push('/components/Hirepeople');
-  };
+  });
 
-  const handleRealEstatePress = () => {
+  const handleRealEstatePress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
     router.push('/components/Realestate');
-  };
+  });
 
-  const handleHotEnquiryPress = () => {
+  const handleHotEnquiryPress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
@@ -624,21 +650,21 @@ const Home = () => {
       pathname: '/components/HotenquiryForm', 
       params: { userId, name: session?.name, mobile: session?.mobile } 
     });
-  };
+  });
 
-  const handleMyEnquiryPress = () => {
+  const handleMyEnquiryPress = withTapPrevention(() => {
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current);
     }
     router.push('/components/Myenquiry');
-  };
+  });
 
-  // Drawer handlers
-  const toggleDrawer = () => {
+  // Drawer handlers with tap prevention
+  const toggleDrawer = withTapPrevention(() => {
     setDrawerOpen(!drawerOpen);
-  };
+  });
 
-  const handleShareApp = async () => {
+  const handleShareApp = withTapPrevention(async () => {
     try {
       const message = `Check out this amazing app! Download here: ${appLink}`;
       
@@ -657,9 +683,9 @@ const Home = () => {
       console.error("Error sharing app:", error);
       Alert.alert("Error", "Unable to share the app right now. Please try again.");
     }
-  };
+  });
 
-  const handleLogout = async () => {
+  const handleLogout = withTapPrevention(async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -684,25 +710,25 @@ const Home = () => {
       ],
       { cancelable: true }
     );
-  };
+  });
 
-  // Manual location refresh
-  const refreshLocation = () => {
+  // Manual location refresh with tap prevention
+  const refreshLocation = withTapPrevention(() => {
     if (!isLocationLoading && mounted) {
       requestLocationPermission();
     }
-  };
+  });
 
-  // Render functions for FlatList
+  // Render functions for FlatList with tap prevention
   const renderTrendingItem = useCallback(({ item }) => (
     <TouchableOpacity 
-      onPress={() => router.push({ 
+      onPress={withTapPrevention(() => router.push({ 
         pathname: '/components/Shop', 
         params: { 
           cat_id: item.master_id, 
           customer_id: userId 
         } 
-      })}
+      }))}
     >
       <View style={[styles.materialCard, { backgroundColor: '#f0c78dff' }]}>
         <View style={styles.materialImageWrapper}>
@@ -721,17 +747,17 @@ const Home = () => {
         </Text>
       </View>
     </TouchableOpacity>
-  ), [router, userId]);
+  ), [router, userId, withTapPrevention]);
 
   const renderMostEnquiredItem = useCallback(({ item }) => (
     <TouchableOpacity 
-      onPress={() => router.push({ 
+      onPress={withTapPrevention(() => router.push({ 
         pathname: '/components/Shop', 
         params: { 
           cat_id: item.master_id, 
           customer_id: userId 
         } 
-      })}
+      }))}
     >
       <View style={styles.enquiredCard}>
         <View style={styles.enquiredImageWrapper}>
@@ -750,17 +776,17 @@ const Home = () => {
         </View>
       </View>
     </TouchableOpacity>
-  ), [router, userId]);
+  ), [router, userId, withTapPrevention]);
 
   const renderMostSearchedItem = useCallback(({ item }) => (
     <TouchableOpacity 
-      onPress={() => router.push({ 
+      onPress={withTapPrevention(() => router.push({ 
         pathname: '/components/Shop', 
         params: { 
           cat_id: item.master_id, 
           customer_id: userId 
         } 
-      })}
+      }))}
     >
       <View style={styles.materialCard}>
         <View style={styles.materialImageWrapper}>
@@ -777,7 +803,7 @@ const Home = () => {
         <Text style={styles.materialText} numberOfLines={2}>{item.title}</Text>
       </View>
     </TouchableOpacity>
-  ), [router, userId]);
+  ), [router, userId, withTapPrevention]);
 
   // Render brands item
   const renderBrandItem = useCallback(({ item }) => (
@@ -816,7 +842,7 @@ const Home = () => {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchMaterials}>
+          <TouchableOpacity style={styles.retryButton} onPress={withTapPrevention(fetchMaterials)}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -869,6 +895,7 @@ const Home = () => {
           style={styles.moreButton}
           onPress={handleMoreMaterials}
           activeOpacity={0.7}
+          disabled={isProcessingTap}
         >
           <Text style={styles.moreButtonText}>
             More Materials
@@ -911,16 +938,9 @@ const Home = () => {
             isLocationLoading={isLocationLoading}
             onLocationLoadingChange={setIsLocationLoading}
           />
-          
-          {/* <TouchableOpacity 
-            style={styles.profileIcon}
-            onPress={handleProfilePress}
-          >
-            <Ionicons name="person-circle" size={22} color="#fff" />
-          </TouchableOpacity> */}
         </View>
 
-        <TouchableOpacity onPress={handleSearchPress}>
+        <TouchableOpacity onPress={handleSearchPress} disabled={isProcessingTap}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color="#999" style={styles.searchIcon} />
             <TextInput
@@ -943,6 +963,7 @@ const Home = () => {
             <TouchableOpacity 
               style={styles.card}
               onPress={handleHirePeoplePress}
+              disabled={isProcessingTap}
             >
               <Image source={require("../../assets/images/hirepeople12.png")} style={styles.cardBg} />
               <View style={styles.cardOverlay}>
@@ -952,6 +973,7 @@ const Home = () => {
             <TouchableOpacity 
               style={styles.card}
               onPress={handleRealEstatePress}
+              disabled={isProcessingTap}
             >
               <Image source={require("../../assets/images/realestate.png")} style={styles.cardBg} />
               <View style={styles.cardOverlay}>
@@ -967,29 +989,11 @@ const Home = () => {
           
           {renderMaterialsGrid()}
 
-          {/* Trending Products */}
-          {/* <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending Products</Text>
-          </View>
-          {loadingTrending ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF8800" />
-            </View>
-          ) : (
-            <FlatList
-              horizontal
-              data={trendingData}
-              keyExtractor={(item) => `trending-${item.master_id}`}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.materialScroll}
-              renderItem={renderTrendingItem}
-            />
-          )} */}
-
           {/* Hot Enquiry */}
           <TouchableOpacity 
             style={styles.hotEnquiry}
             onPress={handleHotEnquiryPress}
+            disabled={isProcessingTap}
           >
             <Image source={require("../../assets/images/Hotenquiry.png")} style={styles.hotEnquiryImg} />
             <Text style={styles.hotEnquiryText}>Hot enquiry</Text>
@@ -1017,7 +1021,7 @@ const Home = () => {
           {/* Hire Categories */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Hire Categories</Text>
-            <TouchableOpacity onPress={handleHirePeoplePress}>
+            <TouchableOpacity onPress={handleHirePeoplePress} disabled={isProcessingTap}>
               <Text style={styles.moreText}>More</Text>
             </TouchableOpacity>
           </View>
@@ -1039,8 +1043,9 @@ const Home = () => {
                   <TouchableOpacity 
                     style={styles.detailBtn}
                     onPress={() => handleCategoryPress(category)}
+                    disabled={isProcessingTap}
                   >
-                    <Text style={styles.detailText}>view more detail</Text>
+                    <Text style={styles.detailText}>View more detail</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1048,31 +1053,31 @@ const Home = () => {
           )}
 
           {/* Most Enquired Products */}
-<View style={styles.sectionHeader}>
-  <Text style={styles.sectionTitle}>Most Enquired Products</Text>
-</View>
-{loadingMostEnquired ? (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color="#FF8800" />
-  </View>
-) : (
-  <View style={styles.mostEnquiredContainer}>
-    <ImageBackground
-      source={require("../../assets/images/mostep.png")}
-      style={styles.enquiredScrollBackground}
-      resizeMode="stretch"
-    >
-      <FlatList
-        horizontal
-        data={mostEnquiredData}
-        keyExtractor={(item) => `most-enquired-${item.id}`}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.enquiredScroll}
-        renderItem={renderMostEnquiredItem}
-      />
-    </ImageBackground>
-  </View>
-)}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Most Enquired Products</Text>
+          </View>
+          {loadingMostEnquired ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#FF8800" />
+            </View>
+          ) : (
+            <View style={styles.mostEnquiredContainer}>
+              <ImageBackground
+                source={require("../../assets/images/mostep.png")}
+                style={styles.enquiredScrollBackground}
+                resizeMode="stretch"
+              >
+                <FlatList
+                  horizontal
+                  data={mostEnquiredData}
+                  keyExtractor={(item) => `most-enquired-${item.id}`}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.enquiredScroll}
+                  renderItem={renderMostEnquiredItem}
+                />
+              </ImageBackground>
+            </View>
+          )}
 
           {/* Our Brands - Fixed Auto Scroll */}
           <View style={styles.sectionHeader}>
@@ -1118,41 +1123,56 @@ const Home = () => {
         </ScrollView>
       </View>
 
-{/* Footer */}
-<View style={styles.footer}>
-  {/* Home Tab */}
-  <TouchableOpacity style={styles.footerTab}>
-    <MaterialIcons name="home" size={24} color="#FF8800" />
-    <Text style={[styles.footerText, { color: "#FF8800" }]}>Home</Text>
-  </TouchableOpacity>
-  
-  {/* Profile Tab */}
-  <TouchableOpacity style={styles.footerTab} onPress={handleProfilePress}>
-    <MaterialIcons name="person" size={24} color="#888" />
-    <Text style={styles.footerText}>Profile</Text>
-  </TouchableOpacity>
-  
-  {/* Center Circular Hot Enquiry Button */}
-  <TouchableOpacity style={styles.centerEnquiryButton} onPress={handleHotEnquiryPress}>
-    <View style={styles.centerEnquiryCircle}>
-      <MaterialIcons name="whatshot" size={24} color="#fff" />
-    </View>
-    <Text style={styles.centerEnquiryText}>Hot Enquiry</Text>
-  </TouchableOpacity>
-  
-  {/* My Enquiry Tab */}
-  <TouchableOpacity style={styles.footerTab} onPress={handleMyEnquiryPress}>
-    <MaterialIcons name="list-alt" size={24} color="#888" />
-    <Text style={styles.footerText}>My Enquiry</Text>
-  </TouchableOpacity>
-  
-  {/* Menu Tab */}
-  <TouchableOpacity style={styles.footerTab} onPress={toggleDrawer}>
-    <MaterialIcons name="menu" size={24} color="#888" />
-    <Text style={styles.footerText}>Menu</Text>
-  </TouchableOpacity>
-</View>
-      
+      {/* Footer */}
+      <View style={styles.footer}>
+        {/* Home Tab */}
+        <TouchableOpacity style={styles.footerTab} disabled={isProcessingTap}>
+          <MaterialIcons name="home" size={24} color="#FF8800" />
+          <Text style={[styles.footerText, { color: "#FF8800" }]}>Home</Text>
+        </TouchableOpacity>
+        
+        {/* Profile Tab */}
+        <TouchableOpacity 
+          style={styles.footerTab} 
+          onPress={handleProfilePress}
+          disabled={isProcessingTap}
+        >
+          <MaterialIcons name="person" size={24} color="#888" />
+          <Text style={styles.footerText}>Profile</Text>
+        </TouchableOpacity>
+        
+        {/* Center Circular Hot Enquiry Button */}
+        <TouchableOpacity 
+          style={styles.centerEnquiryButton} 
+          onPress={handleHotEnquiryPress}
+          disabled={isProcessingTap}
+        >
+          <View style={styles.centerEnquiryCircle}>
+            <MaterialIcons name="whatshot" size={24} color="#fff" />
+          </View>
+          <Text style={styles.centerEnquiryText}>Hot Enquiry</Text>
+        </TouchableOpacity>
+        
+        {/* My Enquiry Tab */}
+        <TouchableOpacity 
+          style={styles.footerTab} 
+          onPress={handleMyEnquiryPress}
+          disabled={isProcessingTap}
+        >
+          <MaterialIcons name="list-alt" size={24} color="#888" />
+          <Text style={styles.footerText}>My Enquiry</Text>
+        </TouchableOpacity>
+        
+        {/* Menu Tab */}
+        <TouchableOpacity 
+          style={styles.footerTab} 
+          onPress={toggleDrawer}
+          disabled={isProcessingTap}
+        >
+          <MaterialIcons name="menu" size={24} color="#888" />
+          <Text style={styles.footerText}>Menu</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };

@@ -18,8 +18,12 @@ export default function Myenquiry() {
       router.push({ 
         pathname: '/components/MyenquiryDetails', 
         params: { 
-          title: type,
-          customer_id: session.id 
+         title: type
+          .toLowerCase()
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' '),
+        customer_id: session.id 
         }, 
       });
     } else {
