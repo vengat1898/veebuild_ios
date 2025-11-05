@@ -1,22 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
 
 export default function HirepeopleDetails1() {
   const router = useRouter();
+  const { session, isSessionLoaded, clearSession } = useContext(SessionContext);
 
   // Extract route params
   const { data, cat_id, customer_id, user_id, v_id } = useLocalSearchParams();
@@ -27,7 +29,55 @@ export default function HirepeopleDetails1() {
   const [imgError, setImgError] = useState(false);
   const [activeTab, setActiveTab] = useState('Quick Info');
 
+  // Check if user is a guest (no proper mobile number)
+  const isGuestUser = !session || 
+                     !session.mobile || 
+                     session.mobile === '' || 
+                     session.id === 'guest_user' || 
+                     session.type === 'guest';
+
+  // Handle sign in for guest users - COMPLETE NAVIGATION RESET
+  const handleSignIn = async () => {
+    console.log("Sign in clicked from Professional Details");
+    
+    // Clear any guest session before navigating to login
+    if (isGuestUser) {
+      await clearSession();
+    }
+    
+    // COMPLETE NAVIGATION RESET - This will clear the entire stack
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    
+    setTimeout(() => {
+      router.replace({
+        pathname: '/Login',
+        params: { 
+          fromProfessionalDetails: 'true',
+          returnParams: JSON.stringify({ data, cat_id, customer_id, user_id, v_id })
+        }
+      });
+    }, 100);
+  };
+
+  // Handle back navigation for guest users
+  const handleBackPress = () => {
+    // Complete reset to home
+    if (router.dismissAll) {
+      router.dismissAll();
+    }
+    setTimeout(() => {
+      router.replace('/components/Home');
+    }, 100);
+  };
+
   const handleCallPress = () => {
+    if (isGuestUser) {
+      handleSignIn();
+      return;
+    }
+    
     if (person.mobile) {
       Linking.openURL(`tel:${person.mobile}`);
     } else {
@@ -36,6 +86,11 @@ export default function HirepeopleDetails1() {
   };
 
   const handleWhatsAppPress = () => {
+    if (isGuestUser) {
+      handleSignIn();
+      return;
+    }
+    
     if (person.mobile) {
       const phoneNumber = person.mobile.replace(/^\+?0?/, '');
       Linking.openURL(`https://wa.me/${phoneNumber}`);
@@ -72,23 +127,12 @@ export default function HirepeopleDetails1() {
     }
   }, []);
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8B4513" />
-      </View>
-    );
-  }
-
-  if (!person) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>No data found</Text>
-      </View>
-    );
-  }
-
   const handleEnquiryPress = () => {
+    if (isGuestUser) {
+      handleSignIn();
+      return;
+    }
+
     const enquiryParams = {
       cat_id: cat_id || '',
       land_id: person.id || '',
@@ -114,6 +158,82 @@ export default function HirepeopleDetails1() {
       params: enquiryParams,
     });
   };
+
+  // Loading states
+  if (!isSessionLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B4513" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // Show login required screen for guest users - HIDE ALL DETAILS
+  if (isGuestUser) {
+    return (
+      <View style={{ flex: 1 }}>
+        <LinearGradient
+          colors={['#8B4513', '#A0522D', '#D2691E']}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerText}>Professional Details</Text>
+          <View style={styles.headerIcon}>
+            <Ionicons name="person" size={20} color="white" />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.guestContainer}>
+          <View style={styles.guestIconContainer}>
+            <Ionicons name="lock-closed" size={80} color="#8B4513" />
+          </View>
+          
+          <Text style={styles.guestTitle}>Login Required</Text>
+          
+          <Text style={styles.guestMessage}>
+            You need to be logged in to view professional details and contact information. Please sign in to access this feature.
+          </Text>
+
+          <TouchableOpacity 
+            style={styles.signInButton}
+            onPress={handleSignIn}
+          >
+            <Ionicons name="log-in" size={20} color="white" style={styles.signInIcon} />
+            <Text style={styles.signInButtonText}>Sign In to View Details</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.backButtonGuest}
+            onPress={handleBackPress}
+          >
+            <Text style={styles.backButtonText}>Go Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B4513" />
+        <Text style={styles.loadingText}>Loading Professional Details...</Text>
+      </View>
+    );
+  }
+
+  if (!person) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>No data found</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -280,6 +400,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#8B4513',
+    fontSize: 16,
   },
   errorText: {
     fontSize: 16,
@@ -597,5 +722,76 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 6,
+  },
+  // Guest user styles
+  guestContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    backgroundColor: '#FAF0E6',
+  },
+  guestIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF8DC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 25,
+    borderWidth: 3,
+    borderColor: '#D2B48C',
+  },
+  guestTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#8B4513',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  guestMessage: {
+    fontSize: 16,
+    color: '#5D4037',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  signInButton: {
+    flexDirection: 'row',
+    backgroundColor: '#8B4513',
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+    width: '80%',
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  signInIcon: {
+    marginRight: 10,
+  },
+  signInButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonGuest: {
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+    width: '80%',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#8B4513',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

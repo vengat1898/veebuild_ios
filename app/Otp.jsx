@@ -121,7 +121,7 @@ export default function Otp() {
       }
     } catch (error) {
       console.error('Verification error:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Network error occurred');
+      Alert.alert('Error', error.response?.data?.message || 'Invalid OTP');
     } finally {
       setIsLoading(false);
     }

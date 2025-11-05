@@ -1,8 +1,9 @@
+// app/_layout.tsx
 import { Stack, usePathname, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react'; // Added useState import
+import { useEffect, useState } from 'react';
 import { Alert, BackHandler } from 'react-native';
 import { SessionProvider } from '../context/SessionContext';
-import SplashScreen from './components/SplashScreen'; // Fixed import path
+import SplashScreen from './components/SplashScreen';
 
 export default function RootLayout() {
   const [isSplashComplete, setSplashComplete] = useState(false);
@@ -14,7 +15,11 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <BackHandlerWrapper>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ 
+          headerShown: false,
+          // Disable swipe gestures for all screens by default
+          gestureEnabled: false 
+        }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="Login" />
           <Stack.Screen name="Otp" />
@@ -32,14 +37,32 @@ function BackHandlerWrapper({ children }) {
 
   useEffect(() => {
     const backAction = () => {
-      // Routes where we want to show exit confirmation
-      const exitRoutes = [
+      // Routes where back is COMPLETELY disabled
+      const noBackRoutes = [
+        '/Otp',
         '/components/Home',
-        '/Login',
-        '/components/Otp',
-        '/components/Register',
-        
+        '/Login'
       ];
+      
+      // Routes where exit confirmation is shown
+      const exitRoutes = [
+        '/Login',
+        '/Register',
+        '/components/Home',
+      ];
+      
+      // Check if current route is in noBackRoutes - disable back completely
+      if (noBackRoutes.includes(pathname)) {
+        // For OTP screen, show a specific message
+        if (pathname === '/Otp') {
+          Alert.alert(
+            "Complete Verification",
+            "Please complete the OTP verification process.",
+            [{ text: "OK", onPress: () => null }]
+          );
+        }
+        return true; // Prevent default behavior completely
+      }
       
       // Check if current route is in exitRoutes
       if (exitRoutes.includes(pathname)) {
@@ -61,7 +84,7 @@ function BackHandlerWrapper({ children }) {
         );
         return true; // Prevent default behavior
       } else {
-        // If not on an exit route, navigate to home
+        // For other routes, navigate to home
         router.replace('/components/Home');
         return true; // Prevent default behavior
       }

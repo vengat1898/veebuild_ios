@@ -65,33 +65,35 @@ export default function Profile() {
     fetchProfile();
   }, [getUserId]);
 
-  // Name validation
-  const validateName = (name) => {
-    const nameRegex = /^[a-zA-Z\s]{2,50}$/;
-    if (!name.trim()) {
-      return 'Name is required';
-    } else if (name.trim().length < 3) {
-      return 'Name must be at least 3 characters long';
-    } else if (name.trim().length > 50) {
-      return 'Name must not exceed 50 characters';
-    } else if (!nameRegex.test(name.trim())) {
-      return 'Name can only contain letters and spaces';
-    }
-    return '';
-  };
+// Name validation - no special characters or numbers allowed
+const validateName = (name) => {
+  const nameRegex = /^[a-zA-Z\s]+$/; // Only letters and spaces allowed
+  
+  if (!name.trim()) {
+    return 'Name is required';
+  } else if (name.trim().length < 3) {
+    return 'Name must be at least 3 characters long';
+  } else if (name.trim().length > 50) {
+    return 'Name must not exceed 50 characters';
+  } else if (!nameRegex.test(name.trim())) {
+    return 'Name can only contain letters and spaces (no numbers or special characters)';
+  }
+  return '';
+};
 
-  // Email validation
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
-      return 'Email is required';
-    } else if (!emailRegex.test(email.trim())) {
-      return 'Please enter a valid email address';
-    } else if (email.length > 100) {
-      return 'Email must not exceed 100 characters';
-    }
-    return '';
-  };
+// Email validation - Standard (allows valid email special characters)
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (!email.trim()) {
+    return 'Email is required';
+  } else if (!emailRegex.test(email.trim())) {
+    return 'Please enter a valid email address';
+  } else if (email.length > 100) {
+    return 'Email must not exceed 100 characters';
+  }
+  return '';
+};
 
   // Location validation
   const validateLocation = (location) => {

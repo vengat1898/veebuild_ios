@@ -50,7 +50,7 @@ export default function Myenquiry() {
       <View style={styles.container}>
         <TouchableOpacity 
           style={styles.cardContainer}
-          onPress={() => handlePress('meterial enquiry')}
+          onPress={() => handlePress('Material enquiry')}
         >
           <LinearGradient
             colors={['#8B4513', '#D2691E']}
