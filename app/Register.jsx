@@ -40,27 +40,48 @@ export default function Register() {
 
   // Validation functions
   const validateName = (name) => {
+    const nameRegex = /^[a-zA-Z\s]+$/; // Only letters and spaces allowed
+    
     if (!name.trim()) {
       return 'Name is required';
-    }
-    if (name.trim().length < 3) {
+    } else if (name.trim().length < 3) {
       return 'Name should be at least 3 characters long';
-    }
-    if (!/^[a-zA-Z\s]*$/.test(name.trim())) {
-      return 'Name should contain only letters and spaces';
+    } else if (name.trim().length > 50) {
+      return 'Name must not exceed 50 characters';
+    } else if (!nameRegex.test(name.trim())) {
+      return 'Name can only contain letters and spaces (no numbers or special characters)';
     }
     return '';
   };
 
   const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Standard email validation
+    
     if (!email.trim()) {
       return 'Email is required';
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      return 'Please enter a valid email address';
+    } else if (!emailRegex.test(email.trim())) {
+      return 'Please enter a valid email address (e.g., example@gmail.com)';
+    } else if (email.length > 100) {
+      return 'Email must not exceed 100 characters';
     }
     return '';
+  };
+
+  // Real-time validation handlers
+  const handleNameChange = (text) => {
+    setName(text);
+    // Clear error when user starts typing
+    if (errors.name) {
+      setErrors(prev => ({ ...prev, name: validateName(text) }));
+    }
+  };
+
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    // Clear error when user starts typing
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: validateEmail(text) }));
+    }
   };
 
   // Validate form whenever name or email changes
@@ -217,9 +238,7 @@ export default function Register() {
             <Image source={logoimg} style={styles.logo} resizeMode="contain" />
             <Text style={styles.heading}>Complete Registration</Text>
 
-
-            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-
+            {/* Name Input with Error */}
             <View style={styles.inputWrapper}>
               <FontAwesome name="user" size={20} color="#1e90ff" style={styles.icon} />
               <TextInput
@@ -227,24 +246,29 @@ export default function Register() {
                   styles.input, 
                   errors.name && styles.inputError
                 ]}
-                placeholder="Full Name"
+                placeholder="Full Name (letters only)"
                 value={name}
-                onChangeText={setName}
+                onChangeText={handleNameChange}
+                onBlur={() => setErrors(prev => ({ ...prev, name: validateName(name) }))}
                 autoCapitalize="words"
                 maxLength={50}
+                returnKeyType="next"
               />
             </View>
-            
+            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
 
+            {/* Mobile Input */}
             <View style={styles.inputWrapper}>
               <FontAwesome name="phone" size={20} color="#1e90ff" style={styles.icon} />
               <TextInput
                 style={[styles.input, styles.disabledInput]}
                 value={mobile}
                 editable={false}
+                placeholder="Mobile Number"
               />
             </View>
-             {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+
+            {/* Email Input with Error */}
             <View style={styles.inputWrapper}>
               <FontAwesome name="envelope" size={20} color="#1e90ff" style={styles.icon} />
               <TextInput
@@ -257,11 +281,13 @@ export default function Register() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
+                onBlur={() => setErrors(prev => ({ ...prev, email: validateEmail(email) }))}
                 maxLength={100}
+                returnKeyType="done"
               />
             </View>
-            
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
             <TouchableOpacity 
               style={[
@@ -334,9 +360,7 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 16,
   },
-  inputError: {
-    borderColor: '#ff0000',
-  },
+
   disabledInput: {
     color: '#666',
     backgroundColor: '#f5f5f5',
