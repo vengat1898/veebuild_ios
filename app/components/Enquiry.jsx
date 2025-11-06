@@ -47,9 +47,11 @@ export default function Enquiry() {
   const fetchCategoryName = async (catId) => {
     if (!catId) return;
     
-    const categoryUrl = `cat.php?cat_id=${catId}`;
+    const categoryUrl = `cat_sec.php?cat_id=${catId}`;
     try {
       const response = await api.get(categoryUrl, { timeout: 10000 });
+      console.log("cat response "+ response.data);
+      
       if (response.data.result === 'Success' && response.data.storeList.length > 0) {
         setCategories(response.data.storeList[0].title);
       } else {
@@ -172,11 +174,13 @@ export default function Enquiry() {
         Alert.alert(
           'Success!', 
           response.data.api_message || 'Your enquiry has been submitted successfully.',
-          [{ text: 'OK', onPress: () => {
-            setMessage('');
-            setCategories('');
-            if (!vendorId) router.back();
-          }}]
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              // Redirect to home screen after successful submission
+              router.replace("/componets/Home");
+            }
+          }]
         );
       } else {
         Alert.alert('Submission Failed', response.data.api_message || 'Unable to submit your enquiry. Please try again.');

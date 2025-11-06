@@ -593,10 +593,15 @@ export default function Shop() {
           <TouchableOpacity 
             style={styles.button} 
             onPress={() => {
+              console.log("enq params");
+              
+              console.log(cat_id, customer_id,  item.id,  item.name );
+              
               router.push({
                 pathname: '/components/Enquiry',
                 params: { cat_id, customer_id, vendor_id: item.id, shop_name: item.name }
               });
+            
             }}
           >
             <Ionicons name="information-circle" size={16} color="white" style={styles.icon} />
