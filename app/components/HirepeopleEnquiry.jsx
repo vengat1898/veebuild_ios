@@ -46,7 +46,8 @@ export default function HirepeopleEnquiry() {
 
   // Handle sign in for guest users - COMPLETE NAVIGATION RESET
   const handleSignIn = async () => {
-    console.log("Sign in clicked from Hire People Enquiry");
+    console.log("🔐 Sign in clicked from Hire People Enquiry");
+    console.log("📱 Current session:", JSON.stringify(session, null, 2));
     
     // Clear any guest session before navigating to login
     if (isGuestUser) {
@@ -81,15 +82,26 @@ export default function HirepeopleEnquiry() {
   };
 
   useEffect(() => {
+    console.log("🔄 useEffect triggered - Session loaded:", isSessionLoaded);
+    console.log("👤 Current session:", JSON.stringify(session, null, 2));
+    console.log("🚫 Is guest user:", isGuestUser);
+    
     if (isSessionLoaded && session && !isGuestUser) {
+      console.log("✅ Setting user data from session");
       setName(session.name || '');
       setMobile(session.mobile || '');
       setCity(session.city || professionalCity || '');
+      
+      console.log("📝 Form data set:");
+      console.log("   Name:", session.name || '');
+      console.log("   Mobile:", session.mobile || '');
+      console.log("   City:", session.city || professionalCity || '');
     }
   }, [isSessionLoaded, session, isGuestUser]);
 
   // Loading states
   if (!isSessionLoaded) {
+    console.log("⏳ Showing loading state...");
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#8B4513" />
@@ -100,6 +112,9 @@ export default function HirepeopleEnquiry() {
 
   // Show login required screen for guest users
   if (isGuestUser) {
+    console.log("👤 Showing guest user screen");
+    console.log("📋 Params received:", JSON.stringify(params, null, 2));
+    
     return (
       <View style={{ flex: 1 }}>
         <LinearGradient
@@ -147,12 +162,36 @@ export default function HirepeopleEnquiry() {
   }
 
   const handleSubmit = async () => {
-    if (isSubmitting) return;
-    if (!product_name) return Alert.alert('Error', 'Professional information is missing');
-    if (!city) return Alert.alert('Error', 'Please enter your city');
-    if (!session?.id) return Alert.alert('Error', 'User session not found. Please login again.');
+    console.log("🚀 Submit button clicked");
+    console.log("📊 Current form state:");
+    console.log("   Name:", name);
+    console.log("   Mobile:", mobile);
+    console.log("   Message:", message);
+    console.log("   City:", city);
+    console.log("   Product Name:", product_name);
+    
+    if (isSubmitting) {
+      console.log("⏳ Already submitting, returning...");
+      return;
+    }
+    
+    if (!product_name) {
+      console.log("❌ Product name missing");
+      return Alert.alert('Error', 'Professional information is missing');
+    }
+    
+    if (!city) {
+      console.log("❌ City missing");
+      return Alert.alert('Error', 'Please enter your city');
+    }
+    
+    if (!session?.id) {
+      console.log("❌ Session ID missing");
+      return Alert.alert('Error', 'User session not found. Please login again.');
+    }
 
     setIsSubmitting(true);
+    console.log("🔄 Starting submission process...");
 
     const enquiryParams = {
       user_id: session.id,
@@ -166,16 +205,29 @@ export default function HirepeopleEnquiry() {
       cat_id: cat_id || ''
     };
 
+    console.log("📨 API Request Parameters:");
+    console.log(JSON.stringify(enquiryParams, null, 2));
+
     try {
+      console.log("🌐 Making API call to professional_enquery.php...");
       const response = await api.get('professional_enquery.php', {
         params: enquiryParams
       });
 
+      console.log("✅ API Response Received:");
+      console.log("📅 Date:", new Date().toISOString());
+      console.log("📦 Full Response:", JSON.stringify(response, null, 2));
+      console.log("📋 Response Data:", JSON.stringify(response.data, null, 2));
+      console.log("🔢 Response Status:", response.status);
+      console.log("📝 Response Status Text:", response.statusText);
+      
       if (response.data.success === 1) {
+        console.log("🎉 Enquiry submitted successfully!");
         Alert.alert('Success', 'Enquiry submitted successfully', [
           { 
             text: 'OK', 
             onPress: () => {
+              console.log("🏠 Navigating to home after success...");
               if (router.dismissAll) {
                 router.dismissAll();
               }
@@ -186,18 +238,35 @@ export default function HirepeopleEnquiry() {
           }
         ]);
       } else {
+        console.log("❌ API returned failure:", response.data.text);
         Alert.alert('Failed', response.data.text || 'Something went wrong');
       }
     } catch (error) {
+      console.log("💥 API Error Occurred:");
+      console.log("📅 Date:", new Date().toISOString());
+      console.log("🚨 Error Object:", JSON.stringify(error, null, 2));
+      console.log("📝 Error Message:", error.message);
+      
       let errorMessage = 'Submission failed. Please try again.';
       if (error.response) {
+        console.log("📡 Error Response Data:", JSON.stringify(error.response.data, null, 2));
+        console.log("🔢 Error Response Status:", error.response.status);
         errorMessage = error.response.data.text || errorMessage;
+      } else if (error.request) {
+        console.log("🌐 No response received - Network error");
+        errorMessage = 'Network error. Please check your connection.';
       }
+      
+      console.log("📢 Showing alert with error:", errorMessage);
       Alert.alert('Error', errorMessage);
     } finally {
+      console.log("🏁 Submission process completed");
       setIsSubmitting(false);
     }
   };
+
+  console.log("🎨 Rendering main enquiry form");
+  console.log("📱 Form values - Name:", name, "Mobile:", mobile, "Message:", message, "City:", city);
 
   return (
     <View style={{ flex: 1 }}>
@@ -229,7 +298,10 @@ export default function HirepeopleEnquiry() {
               placeholder="Enter your name"
               placeholderTextColor="#999"
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                console.log("✏️ Name changed to:", text);
+                setName(text);
+              }}
               editable={!session?.name}
             />
           </View>
@@ -242,7 +314,10 @@ export default function HirepeopleEnquiry() {
               placeholderTextColor="#999"
               value={mobile}
               keyboardType="phone-pad"
-              onChangeText={setMobile}
+              onChangeText={(text) => {
+                console.log("📱 Mobile changed to:", text);
+                setMobile(text);
+              }}
               editable={!session?.mobile}
             />
           </View>
@@ -256,7 +331,10 @@ export default function HirepeopleEnquiry() {
               multiline
               numberOfLines={4}
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(text) => {
+                console.log("💬 Message changed to:", text);
+                setMessage(text);
+              }}
               textAlignVertical="top"
             />
           </View>

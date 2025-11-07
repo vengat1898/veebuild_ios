@@ -177,8 +177,10 @@ export default function Enquiry() {
           [{ 
             text: 'OK', 
             onPress: () => {
+              console.log('Navigating to: /componets/Home'); 
               // Redirect to home screen after successful submission
-              router.replace("/componets/Home");
+              router.replace('/components/Home');
+              console.log('Navigating to00000: /componets/Home'); 
             }
           }]
         );

@@ -966,9 +966,9 @@ const Home = () => {
               disabled={isProcessingTap}
             >
               <Image source={require("../../assets/images/hirepeople12.png")} style={styles.cardBg} />
-              <View style={styles.cardOverlay}>
+              {/* <View style={styles.cardOverlay}>
                 <Text style={styles.cardNumber}>29</Text>
-              </View>
+              </View> */}
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.card}
@@ -976,9 +976,9 @@ const Home = () => {
               disabled={isProcessingTap}
             >
               <Image source={require("../../assets/images/realestate.png")} style={styles.cardBg} />
-              <View style={styles.cardOverlay}>
+              {/* <View style={styles.cardOverlay}>
                 <Text style={styles.cardNumber}>3</Text>
-              </View>
+              </View> */}
             </TouchableOpacity>
           </View>
 

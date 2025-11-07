@@ -22,6 +22,9 @@ export default function MyenquiryDetails() {
     Rejected: 1,
   };
 
+  // Debug log to see what title is received
+  console.log("🔍 Received title:", title, "Type:", typeof title);
+
   useEffect(() => {
     const fetchEnquiries = async () => {
       const userId = customer_id || (session && session.id);
@@ -31,12 +34,21 @@ export default function MyenquiryDetails() {
         const statusCode = statusMap[selectedStatus];
         let url = "";
 
-        if (title === "real estate enquiry") {
+        // Normalize the title for comparison
+        const normalizedTitle = title?.toLowerCase().trim();
+
+        console.log("📋 Normalized Title:", normalizedTitle);
+
+        if (normalizedTitle === "real estate enquiry") {
           url = `real_estate_enquiry_list.php?user_id=${userId}&status=${statusCode}`;
-        } else if (title === "Hire people enquiry") {
+        } else if (normalizedTitle === "hire people enquiry") {
           url = `hire_enquiry_list.php?user_id=${userId}&status=${statusCode}`;
-        } else {
+        } else if (normalizedTitle === "material enquiry") {
           url = `my_enquery.php?user_id=${userId}&status=${statusCode}`;
+        } else {
+          console.log("❌ Unknown enquiry type:", normalizedTitle);
+          setEnquiries([]);
+          return;
         }
 
         console.log("\n==============================");
@@ -67,11 +79,11 @@ export default function MyenquiryDetails() {
     <View style={styles.detailsBox}>
       <View style={styles.row}>
         <Text style={styles.label}>Name</Text>
-        <Text style={styles.value}>{item.name}</Text>
+        <Text style={styles.value}>{item.name || item.customer_name || "N/A"}</Text>
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Mobile Number</Text>
-        <Text style={styles.value}>{item.mobile}</Text>
+        <Text style={styles.value}>{item.mobile || item.phone || item.contact_number || "N/A"}</Text>
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Enquiry Status</Text>
@@ -88,21 +100,21 @@ export default function MyenquiryDetails() {
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Date</Text>
-        <Text style={styles.value}>{item.created}</Text>
+        <Text style={styles.value}>{item.created || item.date || item.created_date || "N/A"}</Text>
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Enquiry For</Text>
-        <Text style={styles.value}>{item.product_name}</Text>
+        <Text style={styles.value}>{item.product_name || item.service_type || item.enquiry_for || "N/A"}</Text>
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Enquiry To</Text>
-        <Text style={styles.value}>{item.vendor_name || "N/A"}</Text>
+        <Text style={styles.value}>{item.vendor_name || item.company_name || item.provider_name || "N/A"}</Text>
       </View>
 
       {/* Separate Message Box */}
       <View style={styles.messageBox}>
         <Text style={styles.messageLabel}>Message</Text>
-        <Text style={styles.messageText}>{item.message || "N/A"}</Text>
+        <Text style={styles.messageText}>{item.message || item.description || item.enquiry_message || "N/A"}</Text>
       </View>
     </View>
   );
