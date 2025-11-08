@@ -102,10 +102,10 @@ export default function MyenquiryDetails() {
         <Text style={styles.label}>Date</Text>
         <Text style={styles.value}>{item.created || item.date || item.created_date || "N/A"}</Text>
       </View>
-      <View style={styles.row}>
+      {/* <View style={styles.row}>
         <Text style={styles.label}>Enquiry For</Text>
         <Text style={styles.value}>{item.product_name || item.service_type || item.enquiry_for || "N/A"}</Text>
-      </View>
+      </View> */}
       <View style={styles.row}>
         <Text style={styles.label}>Enquiry To</Text>
         <Text style={styles.value}>{item.vendor_name || item.company_name || item.provider_name || "N/A"}</Text>
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   statusButton: {
     paddingVertical: 10,
     paddingHorizontal: 25,
-    borderRadius: 12,
+    borderRadius: 7,
     backgroundColor: "#fff",
     borderWidth: 1.5,
     borderColor: "#8B4513",

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SessionContext } from '../../context/SessionContext';
@@ -12,7 +12,11 @@ export default function Materials({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [showTrending, setShowTrending] = useState(false);
   const router = useRouter();
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null); 
+  const params = useLocalSearchParams();
+  
+  // Get the selected category ID from params and ensure it's string for comparison
+  const selectedCategoryIdFromParams = params.selectedCategoryId ? params.selectedCategoryId.toString() : null;
+  const [selectedCategoryId, setSelectedCategoryId] = useState(selectedCategoryIdFromParams);
   
   const { session, isSessionLoaded } = useContext(SessionContext);
   const userId = session?.id;
@@ -26,64 +30,108 @@ export default function Materials({ navigation }) {
       if (response.data.result === 'Success') {
         setCategories(response.data.storeList);
         setShowTrending(true);
+        
+        console.log('📦 All categories loaded:', response.data.storeList.length);
       } else {
         Alert.alert('Error', 'Failed to load categories');
       }
     } catch (error) {
+      console.error('Error fetching categories:', error);
       Alert.alert('Error', 'Failed to connect to server');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch main categories
+  // Fetch main categories (for sidebar)
   const fetchMainCategories = async () => {
     try {
-      setLoading(true);
       const response = await api.get('maincategory.php');
       
       if (response.data.result === 'Success') {
-        setMainCategories(response.data.storeList);
+        const mainCats = response.data.storeList || [];
+        setMainCategories(mainCats);
         setShowTrending(true);
-        setSelectedCategoryId(null);
+        
+        console.log('🏷️ Main categories loaded:', mainCats.length);
+        console.log('🎯 Looking for category ID:', selectedCategoryIdFromParams);
+        console.log('📋 Available main categories:', mainCats.map(cat => ({ id: cat.id, title: cat.title })));
+        
+        // If we have a selected category ID from params, find it in main categories
+        if (selectedCategoryIdFromParams) {
+          const foundCategory = mainCats.find(cat => cat.id.toString() === selectedCategoryIdFromParams);
+          console.log('🔍 Found category in main categories:', foundCategory);
+          
+          if (foundCategory) {
+            // Fetch the specific category
+            await fetchCategoryById(selectedCategoryIdFromParams);
+          } else {
+            console.log('❌ Category not found in main categories, showing all');
+            setSelectedCategoryId(null);
+          }
+        }
       }
     } catch (error) {
+      console.error('Error fetching main categories:', error);
       Alert.alert('Error', 'Failed to load main categories');
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchCategoryById = async (catId) => {
-    if (!catId) return;
+    if (!catId) {
+      console.log('🔄 No category ID provided, fetching all categories');
+      await fetchCategories();
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('🔄 Fetching category by ID:', catId);
+      
       const response = await api.get(`cat.php?cat_id=${catId}`);
 
+      console.log('📡 Category API response:', response.data);
+
       if (response.data.result === 'Success') {
-        setCategories(response.data.storeList);
+        setCategories(response.data.storeList || []);
         setShowTrending(true);
-        setSelectedCategoryId(catId); 
+        setSelectedCategoryId(catId.toString());
+        console.log('✅ Category loaded successfully:', response.data.storeList?.length || 0, 'items');
       } else if (response.data.text === 'List Empty!') {
         setCategories([]);
         setShowTrending(true);
-        setSelectedCategoryId(catId); 
+        setSelectedCategoryId(catId.toString());
+        console.log('ℹ️ Category is empty');
         Alert.alert('Info', 'No materials found in this category');
       } else {
+        console.log('❌ Category API returned error:', response.data.text);
         Alert.alert('Error', 'Failed to load category data');
+        // Fallback to all categories
+        await fetchCategories();
+        setSelectedCategoryId(null);
       }
     } catch (error) {
+      console.error('Error fetching category:', error);
       Alert.alert('Error', 'Failed to connect to server');
+      // Fallback to all categories
+      await fetchCategories();
+      setSelectedCategoryId(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategories();
-    fetchMainCategories();
+    const loadData = async () => {
+      await fetchMainCategories();
+    };
+    loadData();
   }, []);
+
+  // Handle when selected category changes
+  useEffect(() => {
+    console.log('🔄 Selected category changed:', selectedCategoryId);
+  }, [selectedCategoryId]);
 
   const handleCategoryPress = (item) => {
     if (!isSessionLoaded) return;
@@ -100,6 +148,7 @@ export default function Materials({ navigation }) {
       return;
     }
 
+    console.log('🎯 Navigating to Shop with category:', item.id);
     router.push({ 
       pathname: '/components/Shop', 
       params: { 
@@ -107,6 +156,27 @@ export default function Materials({ navigation }) {
         customer_id: userId 
       } 
     });
+  };
+
+  // Handle sidebar category click
+  const handleSidebarCategoryPress = async (categoryId) => {
+    console.log('🏷️ Sidebar category pressed:', categoryId);
+    await fetchCategoryById(categoryId);
+  };
+
+  // Handle "All" categories click
+  const handleAllCategoriesPress = async () => {
+    console.log('🔄 All categories pressed');
+    setSelectedCategoryId(null);
+    await fetchCategories();
+  };
+
+  // Find the selected category name for display
+  const getSelectedCategoryName = () => {
+    if (!selectedCategoryId) return 'Materials';
+    
+    const category = mainCategories.find(cat => cat.id.toString() === selectedCategoryId);
+    return category?.title || 'Materials';
   };
 
   if (!isSessionLoaded) {
@@ -131,7 +201,7 @@ export default function Materials({ navigation }) {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>Materials</Text>
+          <Text style={styles.headerText}>{getSelectedCategoryName()}</Text>
           <View style={styles.headerIcon}>
             <Ionicons name="construct" size={24} color="white" />
           </View>
@@ -158,7 +228,7 @@ export default function Materials({ navigation }) {
               styles.allCategoriesBtn,
               selectedCategoryId === null && styles.selectedCategory
             ]} 
-            onPress={fetchCategories}
+            onPress={handleAllCategoriesPress}
           >
             <Ionicons 
               name="apps" 
@@ -177,40 +247,51 @@ export default function Materials({ navigation }) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.categoriesList}
           >
-            {mainCategories.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.categoryItem,
-                  selectedCategoryId === item.id && styles.selectedCategory
-                ]}
-                onPress={() => fetchCategoryById(item.id)}
-              >
-                <View style={styles.categoryImageWrapper}>
-                  <Image 
-                    source={{ uri: item.image }} 
-                    style={styles.categoryImage} 
-                    resizeMode="cover"
-                  />
-                </View>
-                <Text 
+            {mainCategories.map((item, index) => {
+              const isSelected = selectedCategoryId === item.id.toString();
+              console.log(`🔍 Category ${item.id} (${item.title}) - Selected: ${isSelected}`);
+              
+              return (
+                <TouchableOpacity
+                  key={item.id || index}
                   style={[
-                    styles.categoryLabel,
-                    selectedCategoryId === item.id && styles.selectedCategoryText
+                    styles.categoryItem,
+                    isSelected && styles.selectedCategory
                   ]}
-                  numberOfLines={2}
+                  onPress={() => handleSidebarCategoryPress(item.id)}
                 >
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.categoryImageWrapper}>
+                    <Image 
+                      source={{ uri: item.image }} 
+                      style={styles.categoryImage} 
+                      resizeMode="cover"
+                      onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+                    />
+                  </View>
+                  <Text 
+                    style={[
+                      styles.categoryLabel,
+                      isSelected && styles.selectedCategoryText
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
         {/* Right Content - Materials Grid */}
         <View style={styles.contentArea}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Categories</Text>
+            <Text style={styles.sectionTitle}>
+              {selectedCategoryId 
+                ? `${getSelectedCategoryName()} Materials`
+                : 'All Materials'
+              }
+            </Text>
             <View style={styles.titleUnderline} />
           </View>
           
@@ -224,35 +305,43 @@ export default function Materials({ navigation }) {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.materialsGrid}
             >
-              {categories.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.materialCard}
-                  onPress={() => handleCategoryPress(item)}
-                >
-                  <LinearGradient
-                    colors={['#c5875bff', '#A0522D', '#8B4513']}
-                    style={styles.cardGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+              {categories.length > 0 ? (
+                categories.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.id || index}
+                    style={styles.materialCard}
+                    onPress={() => handleCategoryPress(item)}
                   >
-                    <View style={styles.imageWrapper}>
-                      <Image 
-                        source={{ uri: item.image }} 
-                        style={styles.materialImage}
-                        resizeMode="cover"
-                      />
-                      <View style={styles.imageOverlay} />
-                    </View>
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.materialName} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={16} color="white" />
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
+                    <LinearGradient
+                      colors={['#c5875bff', '#A0522D', '#8B4513']}
+                      style={styles.cardGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <View style={styles.imageWrapper}>
+                        <Image 
+                          source={{ uri: item.image }} 
+                          style={styles.materialImage}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.imageOverlay} />
+                      </View>
+                      <View style={styles.cardFooter}>
+                        <Text style={styles.materialName} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color="white" />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.noMaterialsContainer}>
+                  <Ionicons name="construct-outline" size={48} color="#8B4513" />
+                  <Text style={styles.noMaterialsText}>No materials found</Text>
+                  <Text style={styles.noMaterialsSubText}>Try selecting a different category</Text>
+                </View>
+              )}
             </ScrollView>
           )}
         </View>
@@ -439,6 +528,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingBottom: 20,
+    minHeight: 200,
   },
   materialCard: {
     width: '48%',
@@ -500,5 +590,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
+  },
+
+  // No Materials State
+  noMaterialsContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+  },
+  noMaterialsText: {
+    color: '#8B4513',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  noMaterialsSubText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

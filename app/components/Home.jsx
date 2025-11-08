@@ -558,27 +558,27 @@ const Home = () => {
   });
 
   const handleMaterialPress = withTapPrevention((material) => {
-    console.log('🎯 Material pressed:', material.title, 'ID:', material.id);
-    if (userId) {
-      if (scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-      }
-      
-      try {
-        router.push({ 
-          pathname: '/components/Materials', 
-          params: { 
-            cat_id: material.id, 
-            customer_id: userId
-          } 
-        });
-      } catch (error) {
-        console.error('❌ Material navigation failed:', error);
-      }
-    } else {
-      Alert.alert('Error', 'User session not found');
+  console.log('🎯 Material pressed:', material.title, 'ID:', material.id);
+  if (userId) {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
     }
-  });
+    
+    try {
+      router.push({ 
+        pathname: '/components/Materials', 
+        params: { 
+          selectedCategoryId: material.id.toString(), // Ensure it's string
+          categoryName: material.title
+        } 
+      });
+    } catch (error) {
+      console.error('❌ Material navigation failed:', error);
+    }
+  } else {
+    Alert.alert('Error', 'User session not found');
+  }
+});
 
   // Hire Category press handler with tap prevention
   const handleCategoryPress = withTapPrevention(async (category) => {
