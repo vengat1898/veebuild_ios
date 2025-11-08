@@ -22,9 +22,6 @@ export default function MyenquiryDetails() {
     Rejected: 1,
   };
 
-  // Debug log to see what title is received
-  console.log("🔍 Received title:", title, "Type:", typeof title);
-
   useEffect(() => {
     const fetchEnquiries = async () => {
       const userId = customer_id || (session && session.id);
@@ -102,20 +99,37 @@ export default function MyenquiryDetails() {
         <Text style={styles.label}>Date</Text>
         <Text style={styles.value}>{item.created || item.date || item.created_date || "N/A"}</Text>
       </View>
-      {/* <View style={styles.row}>
-        <Text style={styles.label}>Enquiry For</Text>
-        <Text style={styles.value}>{item.product_name || item.service_type || item.enquiry_for || "N/A"}</Text>
-      </View> */}
       <View style={styles.row}>
         <Text style={styles.label}>Enquiry To</Text>
         <Text style={styles.value}>{item.vendor_name || item.company_name || item.provider_name || "N/A"}</Text>
       </View>
 
-      {/* Separate Message Box */}
+      {/* Your Message Box */}
       <View style={styles.messageBox}>
-        <Text style={styles.messageLabel}>Message</Text>
+        <Text style={styles.messageLabel}>Your Message</Text>
         <Text style={styles.messageText}>{item.message || item.description || item.enquiry_message || "N/A"}</Text>
       </View>
+
+      {/* Vendor Reply Box - Only show if vendor_reply exists and is not empty */}
+      {(item.vendor_reply && item.vendor_reply.trim() !== "") && (
+        <View style={[styles.messageBox, styles.vendorReplyBox]}>
+          <View style={styles.vendorReplyHeader}>
+            <Ionicons name="business" size={16} color="#8B4513" />
+            <Text style={styles.vendorReplyLabel}>Vendor's Reply</Text>
+          </View>
+          <Text style={styles.vendorReplyText}>{item.vendor_reply}</Text>
+        </View>
+      )}
+
+      {/* Show message if no vendor reply */}
+      {(!item.vendor_reply || item.vendor_reply.trim() === "") && (
+        <View style={[styles.messageBox, styles.noReplyBox]}>
+          <Text style={styles.noReplyText}>
+            <Ionicons name="time-outline" size={14} color="#666" />
+            {" Waiting for vendor's reply"}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -295,6 +309,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#555",
     lineHeight: 20,
+  },
+  vendorReplyBox: {
+    backgroundColor: "#E8F5E8",
+    borderColor: "#C8E6C9",
+    borderLeftColor: "#4CAF50",
+  },
+  vendorReplyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  vendorReplyLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2E7D32",
+    marginLeft: 6,
+  },
+  vendorReplyText: {
+    fontSize: 14,
+    color: "#1B5E20",
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  noReplyBox: {
+    backgroundColor: "#FFF3E0",
+    borderColor: "#FFE0B2",
+    borderLeftColor: "#FF9800",
+  },
+  noReplyText: {
+    fontSize: 13,
+    color: "#666",
+    fontStyle: "italic",
+    textAlign: "center",
   },
   emptyState: {
     flex: 1,
