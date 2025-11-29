@@ -37,6 +37,27 @@ export default function HirepeopleDetails1() {
                      session.id === 'guest_user' || 
                      session.type === 'guest';
 
+
+
+  // Function to get last 4 digits of mobile number
+
+  const getLastFourDigits = (mobile) => {
+
+    if (!mobile) return 'Not specified';
+
+    
+
+    const mobileString = mobile.toString();
+
+    if (mobileString.length <= 4) return mobileString;
+
+    
+
+    return `XXXXX${mobileString.slice(-4)}`;
+
+  };
+
+
   // API function to track enquiry
   const trackEnquiry = async (professionId, enquiryType, professionalName = '') => {
     const userId = getUserIdSync();
@@ -396,7 +417,7 @@ export default function HirepeopleDetails1() {
                   <Ionicons name="call" size={20} color="#8B4513" />
                   <View>
                     <Text style={styles.infoLabel}>Mobile</Text>
-                    <Text style={styles.infoValue}>{person.mobile || 'Not specified'}</Text>
+                    <Text style={styles.infoValue}> {getLastFourDigits(person.mobile)}</Text>
                   </View>
                 </View>
                 <View style={styles.infoItem}>

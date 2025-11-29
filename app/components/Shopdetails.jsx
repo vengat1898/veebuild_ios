@@ -32,6 +32,25 @@ export default function Shopdetails() {
   const [vendorData, setVendorData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+
+    // Function to get last 4 digits of mobile number
+
+  const getLastFourDigits = (mobile) => {
+
+    if (!mobile) return 'Not specified';
+
+    
+
+    const mobileString = mobile.toString();
+
+    if (mobileString.length <= 4) return mobileString;
+
+    
+
+    return `XXXXX${mobileString.slice(-4)}`;
+
+  };
+
   useEffect(() => {
     const fetchVendorDetails = async () => {
       try {
@@ -188,10 +207,10 @@ export default function Shopdetails() {
 
           <View style={styles.shopInfo}>
             <Text style={styles.nameText}>{vendorData.name}</Text>
-            <View style={styles.ratingBadge}>
+            {/* <View style={styles.ratingBadge}>
               <Ionicons name="star" size={16} color="#FFD700" />
               <Text style={styles.ratingText}>4.8</Text>
-            </View>
+            </View> */}
           </View>
 
           <View style={styles.detailsGrid}>
@@ -252,7 +271,7 @@ export default function Shopdetails() {
                     <Ionicons name="call-outline" size={24} color="#8B4513" />
                     <View style={styles.infoContent}>
                       <Text style={styles.infoHeading}>Mobile</Text>
-                      <Text style={styles.infoText}>{vendorData.mobile}</Text>
+                      <Text style={styles.infoText}>{getLastFourDigits(vendorData.mobile)}</Text>
                     </View>
                   </View>
                 )}
