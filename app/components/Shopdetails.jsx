@@ -3,17 +3,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from "../services/api";
@@ -52,18 +52,50 @@ export default function Shopdetails() {
     fetchVendorDetails();
   }, [vendor_id]);
 
-  const handleCall = () => {
+  // Function to track enquiry
+  const trackEnquiry = async (enquiryType) => {
+    try {
+      const response = await api.get('https://veebuilds.com/mobile/save_enquiry.php', {
+        params: {
+          user_id: customer_id,
+          type: 1, // Assuming type=1 for vendor enquiries
+          enquiry_type: enquiryType, // 1 for call, 2 for WhatsApp
+          poi_id: vendor_id
+        }
+      });
+
+      if (response.data?.status === true) {
+        console.log(`Enquiry tracked successfully for type: ${enquiryType}`);
+      } else {
+        console.log('Enquiry tracking failed:', response.data?.message);
+      }
+    } catch (error) {
+      console.error('Error tracking enquiry:', error);
+      // Don't show alert for tracking errors as it might interrupt user flow
+    }
+  };
+
+  const handleCall = async () => {
     if (vendorData?.mobile) {
+      // Track call enquiry first
+      await trackEnquiry(1); // enquiry_type=1 for call
+      
+      // Then initiate the call
       Linking.openURL(`tel:${vendorData.mobile}`);
     } else {
       Alert.alert('No phone number available');
     }
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     const number = vendorData?.whatsapp || vendorData?.mobile;
     if (number) {
-      Linking.openURL(`https://wa.me/${number.startsWith('91') ? '' : '91'}${number}`);
+      // Track WhatsApp enquiry first
+      await trackEnquiry(2); // enquiry_type=2 for WhatsApp
+      
+      // Then open WhatsApp
+      const whatsappNumber = number.startsWith('91') ? number : `91${number}`;
+      Linking.openURL(`https://wa.me/${whatsappNumber}`);
     } else {
       Alert.alert('No WhatsApp number available');
     }
@@ -165,7 +197,7 @@ export default function Shopdetails() {
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
               <Ionicons name="location-outline" size={16} color="#8B4513" />
-              <Text style={styles.detailText}>13 km away</Text>
+              <Text style={styles.detailText}>{params.distance || vendorData.distance || 0} km away</Text>
             </View>
             {vendorData.city && (
               <View style={styles.detailItem}>

@@ -51,6 +51,29 @@ export default function Shop() {
 
   const customer_id = paramCustomerId || session?.id;
 
+  // Function to track enquiry
+  const trackEnquiry = async (enquiryType, vendorId) => {
+    try {
+      const response = await api.get('https://veebuilds.com/mobile/save_enquiry.php', {
+        params: {
+          user_id: customer_id,
+          type: 1, // Assuming type=1 for vendor enquiries
+          enquiry_type: enquiryType, // 1 for call, 2 for WhatsApp
+          poi_id: vendorId
+        }
+      });
+
+      if (response.data?.status === true) {
+        console.log(`Enquiry tracked successfully for type: ${enquiryType}, vendor: ${vendorId}`);
+      } else {
+        console.log('Enquiry tracking failed:', response.data?.message);
+      }
+    } catch (error) {
+      console.error('Error tracking enquiry:', error);
+      // Don't show alert for tracking errors as it might interrupt user flow
+    }
+  };
+
   // Handle sign in for guest users - COMPLETE NAVIGATION RESET
   const handleSignIn = async () => {
     console.log("Sign in clicked from Shop");
@@ -149,11 +172,16 @@ export default function Shop() {
     );
   }
 
-  const handleCallPress = (mobileNumber) => {
+  const handleCallPress = async (mobileNumber, vendorId) => {
     console.log('=== CALL FUNCTION ===');
     console.log('Attempting to call:', mobileNumber);
+    console.log('Vendor ID:', vendorId);
     
     if (mobileNumber) {
+      // Track call enquiry first
+      await trackEnquiry(1, vendorId); // enquiry_type=1 for call
+      
+      // Then initiate the call
       Linking.openURL(`tel:${mobileNumber}`)
         .then(() => console.log('Call initiated successfully'))
         .catch(err => {
@@ -166,11 +194,15 @@ export default function Shop() {
     }
   };
 
-  const handleWhatsAppPress = (whatsappNumber) => {
+  const handleWhatsAppPress = async (whatsappNumber, vendorId) => {
     console.log('=== WHATSAPP FUNCTION ===');
     console.log('Attempting to open WhatsApp for:', whatsappNumber);
+    console.log('Vendor ID:', vendorId);
     
     if (whatsappNumber) {
+      // Track WhatsApp enquiry first
+      await trackEnquiry(2, vendorId); // enquiry_type=2 for WhatsApp
+      
       const cleanedNumber = whatsappNumber.replace(/^\+?0?|\s+/g, '');
       const whatsappUrl = `https://wa.me/${cleanedNumber}`;
       
@@ -565,7 +597,8 @@ export default function Shop() {
                     state: item.state,
                     country: item.country,
                     rattings: item.rattings,
-                    enquery: item.enquery
+                    enquery: item.enquery,
+                    distance:item.distance
                   }
                 });
               }}
@@ -584,7 +617,7 @@ export default function Shop() {
         <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={styles.button} 
-            onPress={() => handleCallPress(item.mobile)}
+            onPress={() => handleCallPress(item.mobile, item.id)}
           >
             <Ionicons name="call" size={16} color="white" style={styles.icon} />
             <Text style={styles.buttonText}>Call</Text>
@@ -610,7 +643,7 @@ export default function Shop() {
 
           <TouchableOpacity 
             style={styles.button} 
-            onPress={() => handleWhatsAppPress(item.whatsapp)}
+            onPress={() => handleWhatsAppPress(item.whatsapp, item.id)}
           >
             <Ionicons name="logo-whatsapp" size={16} color="white" style={styles.icon} />
             <Text style={styles.buttonText}>WhatsApp</Text>
