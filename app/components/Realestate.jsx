@@ -1,19 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient'; // ✅ for gradient
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Linking,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Linking,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { SessionContext } from '../../context/SessionContext'; // Adjust import path
 import api from "../services/api";
 
 export default function Realestate() {
@@ -25,9 +26,44 @@ export default function Realestate() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { cat_id, customer_id } = params;
+  
+  // Get session context
+  const { getUserIdSync } = useContext(SessionContext);
 
-  const handleCallPress = (mobileNumber) => {
+  // API call to save enquiry
+  const saveEnquiry = async (enquiryType, vendorId) => {
+    try {
+      const userId = getUserIdSync();
+      
+      if (!userId) {
+        console.log('User not logged in, skipping enquiry tracking');
+        return;
+      }
+
+      const response = await api.get('save_enquiry_individual.php', {
+        params: {
+          user_id: userId,
+          enquiry_type: enquiryType,
+          poi_id: vendorId
+        }
+      });
+
+      if (response.data.status) {
+        console.log(`✅ Enquiry saved successfully for type: ${enquiryType}`);
+      } else {
+        console.log('❌ Failed to save enquiry:', response.data.message);
+      }
+    } catch (error) {
+      console.error('❌ Error saving enquiry:', error);
+    }
+  };
+
+  const handleCallPress = async (mobileNumber, vendorId) => {
     if (mobileNumber) {
+      // Save call enquiry first
+      await saveEnquiry(1, vendorId);
+      
+      // Then initiate call
       Linking.openURL(`tel:${mobileNumber}`).catch(() => {
         Alert.alert('Error', 'Could not initiate call');
       });
@@ -36,8 +72,12 @@ export default function Realestate() {
     }
   };
 
-  const handleWhatsAppPress = (mobileNumber) => {
+  const handleWhatsAppPress = async (mobileNumber, vendorId) => {
     if (mobileNumber) {
+      // Save WhatsApp enquiry first
+      await saveEnquiry(2, vendorId);
+      
+      // Then open WhatsApp
       const cleanedNumber = mobileNumber.replace(/^\+?0?|\s+/g, '');
       const whatsappUrl = `https://wa.me/${cleanedNumber}`;
       Linking.openURL(whatsappUrl).catch(() => {
@@ -130,7 +170,10 @@ export default function Realestate() {
       </View>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={() => handleCallPress(item.vendor_mobile)}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => handleCallPress(item.mobile, item.vendor_id)}
+        >
           <Ionicons name="call" size={16} color="white" style={styles.icon} />
           <Text style={styles.buttonText}>Call</Text>
         </TouchableOpacity>
@@ -148,7 +191,10 @@ export default function Realestate() {
           <Text style={styles.buttonText}>Enquiry</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={() => handleWhatsAppPress(item.vendor_mobile)}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => handleWhatsAppPress(item.mobile, item.vendor_id)}
+        >
           <Ionicons name="logo-whatsapp" size={16} color="white" style={styles.icon} />
           <Text style={styles.buttonText}>WhatsApp</Text>
         </TouchableOpacity>
@@ -177,7 +223,6 @@ export default function Realestate() {
 
   return (
     <View style={styles.container}>
-      {/* ✅ Gradient Header */}
       <LinearGradient
         colors={['#5D4037', '#8D6E63', '#D7CCC8']}
         style={styles.header}
@@ -275,7 +320,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8D6E63', // ✅ solid brown
+    backgroundColor: '#8D6E63',
     paddingVertical: 12,
     borderRadius: 8,
     flex: 1,

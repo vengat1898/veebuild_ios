@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
 
 export default function Landdetails() {
   const router = useRouter();
-  const { session, isSessionLoaded, clearSession } = useContext(SessionContext);
+  const { session, isSessionLoaded, clearSession, getUserIdSync } = useContext(SessionContext);
   const { id, cat_id, customer_id } = useLocalSearchParams();
   const [landDetails, setLandDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,37 @@ export default function Landdetails() {
                      session.mobile === '' || 
                      session.id === 'guest_user' || 
                      session.type === 'guest';
+
+  // API call to save enquiry
+  const saveEnquiry = async (enquiryType, vendorId) => {
+    try {
+      const userId = getUserIdSync();
+      
+      if (!userId) {
+        console.log('User not logged in, skipping enquiry tracking');
+        return false;
+      }
+
+      const response = await api.get('save_enquiry_individual.php', {
+        params: {
+          user_id: userId,
+          enquiry_type: enquiryType,
+          poi_id: vendorId
+        }
+      });
+
+      if (response.data.status) {
+        console.log(`✅ Enquiry saved successfully for type: ${enquiryType}`);
+        return true;
+      } else {
+        console.log('❌ Failed to save enquiry:', response.data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error saving enquiry:', error);
+      return false;
+    }
+  };
 
   // Handle sign in for guest users - COMPLETE NAVIGATION RESET
   const handleSignIn = async () => {
@@ -93,27 +124,51 @@ export default function Landdetails() {
     return null;
   };
 
-  const handleCallPress = () => {
+  const handleCallPress = async () => {
     if (isGuestUser) {
       handleSignIn();
       return;
     }
     
     if (landDetails?.mobile) {
-      // You can implement calling functionality here
-      console.log('Call:', landDetails.mobile);
+      // Save call enquiry first
+      const enquirySaved = await saveEnquiry(1, landDetails.vendor_id);
+      
+      if (enquirySaved) {
+        // Then initiate call
+        Linking.openURL(`tel:${landDetails.mobile}`).catch(() => {
+          Alert.alert('Error', 'Could not initiate call');
+        });
+      } else {
+        Alert.alert('Error', 'Failed to track enquiry. Please try again.');
+      }
+    } else {
+      Alert.alert('Error', 'Phone number not available');
     }
   };
 
-  const handleWhatsAppPress = () => {
+  const handleWhatsAppPress = async () => {
     if (isGuestUser) {
       handleSignIn();
       return;
     }
     
     if (landDetails?.mobile) {
-      // You can implement WhatsApp functionality here
-      console.log('WhatsApp:', landDetails.mobile);
+      // Save WhatsApp enquiry first
+      const enquirySaved = await saveEnquiry(2, landDetails.vendor_id);
+      
+      if (enquirySaved) {
+        // Then open WhatsApp
+        const cleanedNumber = landDetails.mobile.replace(/^\+?0?|\s+/g, '');
+        const whatsappUrl = `https://wa.me/${cleanedNumber}`;
+        Linking.openURL(whatsappUrl).catch(() => {
+          Alert.alert('Error', 'Could not open WhatsApp');
+        });
+      } else {
+        Alert.alert('Error', 'Failed to track enquiry. Please try again.');
+      }
+    } else {
+      Alert.alert('Error', 'Phone number not available');
     }
   };
 
@@ -291,10 +346,17 @@ export default function Landdetails() {
           <Text style={styles.label}>Total Cost:</Text>
           <Text style={styles.valueText}>₹ {tot_cost}</Text>
         </View>
+        <View style={styles.item}>
+          <Text style={styles.label}>Contact Number:</Text>
+          <Text style={styles.valueText}>{mobile || 'Not available'}</Text>
+        </View>
       </ScrollView>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={handleCallPress}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={handleCallPress}
+        >
           <Ionicons name="call" size={16} color="white" style={styles.icon} />
           <Text style={styles.buttonText}>Call</Text>
         </TouchableOpacity>

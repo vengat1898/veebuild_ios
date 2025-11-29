@@ -32,6 +32,10 @@ export const SessionProvider = ({ children }) => {
     }
   };
 
+  const getUserIdSync = () => {
+  return session?.id || null;
+};
+
   const saveSession = async (data) => {
     try {
       console.log('💾 Saving session to AsyncStorage:', data);
@@ -174,7 +178,8 @@ export const SessionProvider = ({ children }) => {
         getUserType,
         isLoggedIn,
         getCurrentSession,
-        getSecondaryMobile
+        getSecondaryMobile,
+        getUserIdSync
       }}
     >
       {children}

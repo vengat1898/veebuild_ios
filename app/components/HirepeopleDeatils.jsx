@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,10 +14,13 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { SessionContext } from '../../context/SessionContext'; // Adjust path as needed
 import api from "../services/api";
 
 export default function HirepeopleDetails() {
   const router = useRouter();
+  const { session, getUserIdSync } = useContext(SessionContext);
+  
   const {
     id,
     title,
@@ -35,6 +38,7 @@ export default function HirepeopleDetails() {
   console.log('V ID:', v_id);
   console.log('User ID:', user_id);
   console.log('Customer ID:', customer_id);
+  console.log('Session User ID:', getUserIdSync());
   console.log('========================================================');
   console.log('');
 
@@ -44,18 +48,104 @@ export default function HirepeopleDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const [trackingCalls, setTrackingCalls] = useState({}); // Track ongoing API calls
 
-  const handleCallPress = (mobileNumber) => {
+  // API function to track enquiry
+  const trackEnquiry = async (professionId, enquiryType, professionalName = '') => {
+    const userId = getUserIdSync();
+    
+    console.log('=================== TRACKING ENQUIRY ===================');
+    console.log('User ID:', userId);
+    console.log('Profession ID (poi_id):', professionId);
+    console.log('Enquiry Type:', enquiryType);
+    console.log('Professional Name:', professionalName);
+    console.log('========================================================');
+    
+    if (!userId) {
+      console.log('❌ No user ID found - skipping tracking');
+      return false;
+    }
+
+    // Prevent duplicate tracking for the same action
+    const trackingKey = `${professionId}_${enquiryType}`;
+    if (trackingCalls[trackingKey]) {
+      console.log('🛑 Tracking call already in progress for:', trackingKey);
+      return false;
+    }
+
+    try {
+      setTrackingCalls(prev => ({ ...prev, [trackingKey]: true }));
+      
+      const url = `https://veebuilds.com/mobile/save_enquiry_professional.php`;
+      const params = {
+        user_id: userId,
+        enquiry_type: enquiryType,
+        poi_id: professionId
+      };
+
+      console.log('📡 Sending tracking request:');
+      console.log('URL:', url);
+      console.log('Params:', params);
+
+      const response = await api.get(url, { params });
+      
+      console.log('✅ Tracking response:', response.data);
+      
+      if (response.data?.status) {
+        console.log('🎯 Successfully tracked enquiry');
+        return true;
+      } else {
+        console.log('❌ Tracking failed:', response.data?.message);
+        return false;
+      }
+    } catch (error) {
+      console.log('=================== TRACKING ERROR ===================');
+      console.log('Error tracking enquiry:', error.message);
+      console.log('Error details:', JSON.stringify(error.response?.data, null, 2));
+      console.log('=====================================================');
+      return false;
+    } finally {
+      // Clear tracking flag after a delay
+      setTimeout(() => {
+        setTrackingCalls(prev => {
+          const newState = { ...prev };
+          delete newState[trackingKey];
+          return newState;
+        });
+      }, 3000);
+    }
+  };
+
+  const handleCallPress = async (mobileNumber, professionId, professionalName) => {
+    console.log('=================== CALL BUTTON PRESSED ===================');
+    console.log('Professional Name:', professionalName);
+    console.log('Phone Number:', mobileNumber);
+    console.log('Profession ID:', professionId);
+    console.log('===========================================================');
+
     if (mobileNumber) {
+      // Track the call action first
+      await trackEnquiry(professionId, 1, professionalName);
+      
+      // Then initiate the call
       Linking.openURL(`tel:${mobileNumber}`);
     } else {
       Alert.alert('Error', 'Phone number not available');
     }
   };
 
-  const handleWhatsAppPress = (mobileNumber) => {
+  const handleWhatsAppPress = async (mobileNumber, professionId, professionalName) => {
+    console.log('=================== WHATSAPP BUTTON PRESSED ===================');
+    console.log('Professional Name:', professionalName);
+    console.log('Phone Number:', mobileNumber);
+    console.log('Profession ID:', professionId);
+    console.log('===============================================================');
+
     if (mobileNumber) {
-      // Note: WhatsApp requires phone number in international format without '+' or '0'
+      // Track the WhatsApp action first
+      await trackEnquiry(professionId, 2, professionalName);
+      
+      // Then open WhatsApp
       const phoneNumber = mobileNumber.replace(/^\+?0?/, '');
       Linking.openURL(`https://wa.me/${phoneNumber}`);
     } else {
@@ -217,6 +307,10 @@ export default function HirepeopleDetails() {
     const hasImageError = imageErrors[item.id];
     const showPlaceholder = !item.aatharimage || hasImageError;
 
+    // Check if tracking is in progress for this item
+    const isCallTracking = trackingCalls[`${item.id}_1`];
+    const isWhatsAppTracking = trackingCalls[`${item.id}_2`];
+
     return (
       <LinearGradient
         colors={['#FDF6EC', '#F8F0E5', '#F4E8D8']}
@@ -256,7 +350,7 @@ export default function HirepeopleDetails() {
                 <Text style={styles.title}>{item.name}</Text>
                 <View style={styles.detailRow}>
                   <Ionicons name="location-outline" size={14} color="#8B7355" />
-                  <Text style={styles.subText}>{item.city}</Text>
+                  <Text style={styles.subText}>{item.address}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Ionicons name="briefcase-outline" size={14} color="#8B7355" />
@@ -273,19 +367,21 @@ export default function HirepeopleDetails() {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity 
-            style={styles.button}
-            onPress={() => {
-              console.log('=================== CALL BUTTON PRESSED ===================');
-              console.log('Item ID:', item.id);
-              console.log('Item Name:', item.name);
-              console.log('Phone Number:', item.mobile);
-              console.log('===========================================================');
-              console.log('');
-              handleCallPress(item.mobile);
-            }}
+            style={[
+              styles.button,
+              isCallTracking && styles.buttonDisabled
+            ]}
+            onPress={() => handleCallPress(item.mobile, item.id, item.name)}
+            disabled={isCallTracking}
           >
-            <Ionicons name="call" size={16} color="white" style={styles.icon} />
-            <Text style={styles.buttonText}>Call</Text>
+            {isCallTracking ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Ionicons name="call" size={16} color="white" style={styles.icon} />
+                <Text style={styles.buttonText}>Call</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -320,19 +416,21 @@ export default function HirepeopleDetails() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.button}
-            onPress={() => {
-              console.log('=================== WHATSAPP BUTTON PRESSED ===================');
-              console.log('Item ID:', item.id);
-              console.log('Item Name:', item.name);
-              console.log('Phone Number:', item.mobile);
-              console.log('===============================================================');
-              console.log('');
-              handleWhatsAppPress(item.mobile);
-            }}
+            style={[
+              styles.button,
+              isWhatsAppTracking && styles.buttonDisabled
+            ]}
+            onPress={() => handleWhatsAppPress(item.mobile, item.id, item.name)}
+            disabled={isWhatsAppTracking}
           >
-            <Ionicons name="logo-whatsapp" size={16} color="white" style={styles.icon} />
-            <Text style={styles.buttonText}>WhatsApp</Text>
+            {isWhatsAppTracking ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Ionicons name="logo-whatsapp" size={16} color="white" style={styles.icon} />
+                <Text style={styles.buttonText}>WhatsApp</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -588,6 +686,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
+  },
+  buttonDisabled: {
+    backgroundColor: '#A9A9A9',
+    opacity: 0.7,
   },
   buttonText: {
     color: 'white',
