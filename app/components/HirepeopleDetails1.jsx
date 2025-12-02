@@ -13,8 +13,47 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import logoimg from '../../assets/images/veebuilder.png';
 import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
+
+// Custom Image component with proper error handling
+const ProfessionalImage = ({ imageUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URL is valid before even trying to load
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    if (typeof url !== 'string') return false;
+    if (url.trim() === '') return false;
+    if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
+    if (!url.startsWith('http')) return false;
+    
+    // Additional checks for common problematic patterns
+    if (url.includes('default.jpg') || url.includes('placeholder')) return false;
+    
+    return true;
+  };
+
+  // Determine if we should even try to load the URL
+  const shouldLoadImage = isValidUrl(imageUrl);
+
+  return (
+    <Image
+      source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
+      style={style}
+      defaultSource={logoimg}
+      onError={() => {
+        console.log('Image failed to load, using fallback:', imageUrl);
+        setImageError(true);
+      }}
+      onLoad={() => {
+        console.log('Image loaded successfully:', imageUrl);
+      }}
+      resizeMode="cover"
+    />
+  );
+};
 
 export default function HirepeopleDetails1() {
   const router = useRouter();
@@ -26,7 +65,6 @@ export default function HirepeopleDetails1() {
   const parsedData = data ? JSON.parse(data) : {};
   const [person, setPerson] = useState(parsedData);
   const [loading, setLoading] = useState(!parsedData.id);
-  const [imgError, setImgError] = useState(false);
   const [activeTab, setActiveTab] = useState('Quick Info');
   const [trackingCalls, setTrackingCalls] = useState({}); // Track ongoing API calls
 
@@ -195,13 +233,6 @@ export default function HirepeopleDetails1() {
     }
   };
 
-  const getImageUrl = () => {
-    if (!person?.aatharimage || person.aatharimage.endsWith('/')) {
-      return 'https://via.placeholder.com/300';
-    }
-    return person.aatharimage;
-  };
-
   const fetchDetails = async () => {
     try {
       const response = await api.get(
@@ -355,10 +386,9 @@ export default function HirepeopleDetails1() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileSection}>
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: imgError ? 'https://via.placeholder.com/300' : getImageUrl() }}
+            <ProfessionalImage
+              imageUrl={person.aatharimage}
               style={styles.profileImage}
-              onError={() => setImgError(true)}
             />
             <View style={styles.imageOverlay} />
           </View>
@@ -456,10 +486,9 @@ export default function HirepeopleDetails1() {
             )}
             {activeTab === 'Photos' && (
               <View style={styles.photoContainer}>
-                <Image
-                  source={{ uri: imgError ? 'https://via.placeholder.com/300' : getImageUrl() }}
+                <ProfessionalImage
+                  imageUrl={person.aatharimage}
                   style={styles.photoImage}
-                  onError={() => setImgError(true)}
                 />
                 <View style={styles.photoOverlay}>
                   <Text style={styles.photoText}>Professional Portfolio</Text>

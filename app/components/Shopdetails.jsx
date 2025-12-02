@@ -16,7 +16,45 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import logoimg from '../../assets/images/veebuilder.png';
 import api from "../services/api";
+
+// Custom Image component with proper error handling
+const VendorImage = ({ imageUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URL is valid before even trying to load
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    if (typeof url !== 'string') return false;
+    if (url.trim() === '') return false;
+    if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
+    if (!url.startsWith('http')) return false;
+    
+    // Additional checks for common problematic patterns
+    if (url.includes('default.jpg') || url.includes('placeholder')) return false;
+    
+    return true;
+  };
+
+  // Determine if we should even try to load the URL
+  const shouldLoadImage = isValidUrl(imageUrl);
+
+  return (
+    <Image
+      source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
+      style={style}
+      defaultSource={logoimg}
+      onError={() => {
+        console.log('Image failed to load, using fallback:', imageUrl);
+        setImageError(true);
+      }}
+      onLoad={() => {
+        console.log('Image loaded successfully:', imageUrl);
+      }}
+    />
+  );
+};
 
 export default function Shopdetails() {
   const router = useRouter();
@@ -197,10 +235,9 @@ export default function Shopdetails() {
         {/* Shop Card */}
         <View style={styles.shopCard}>
           <View style={styles.logoContainer}>
-            <Image
-              source={vendorData.shop_image ? { uri: vendorData.shop_image } : require('../../assets/images/veebuilder.png')}
+            <VendorImage
+              imageUrl={vendorData.shop_image}
               style={styles.logo}
-              resizeMode="cover"
             />
             <View style={styles.logoOverlay} />
           </View>
@@ -331,10 +368,9 @@ export default function Shopdetails() {
             {activeTab === 'Photos' && (
               <View style={styles.photoContainer}>
                 {vendorData.shop_image ? (
-                  <Image
-                    source={{ uri: vendorData.shop_image }}
+                  <VendorImage
+                    imageUrl={vendorData.shop_image}
                     style={styles.photoImage}
-                    resizeMode="cover"
                   />
                 ) : (
                   <View style={styles.noPhotosContainer}>

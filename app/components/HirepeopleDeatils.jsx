@@ -14,8 +14,47 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import logoimg from '../../assets/images/veebuilder.png';
 import { SessionContext } from '../../context/SessionContext'; // Adjust path as needed
 import api from "../services/api";
+
+// Custom Image component with proper error handling
+const ProfessionalImage = ({ imageUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URL is valid before even trying to load
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    if (typeof url !== 'string') return false;
+    if (url.trim() === '') return false;
+    if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
+    if (!url.startsWith('http')) return false;
+    
+    // Additional checks for common problematic patterns
+    if (url.includes('default.jpg') || url.includes('placeholder')) return false;
+    
+    return true;
+  };
+
+  // Determine if we should even try to load the URL
+  const shouldLoadImage = isValidUrl(imageUrl);
+
+  return (
+    <Image
+      source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
+      style={style}
+      defaultSource={logoimg}
+      onError={() => {
+        console.log('Image failed to load, using fallback:', imageUrl);
+        setImageError(true);
+      }}
+      onLoad={() => {
+        console.log('Image loaded successfully:', imageUrl);
+      }}
+      resizeMode="cover"
+    />
+  );
+};
 
 export default function HirepeopleDetails() {
   const router = useRouter();
@@ -47,7 +86,6 @@ export default function HirepeopleDetails() {
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [imageErrors, setImageErrors] = useState({});
   const [trackingCalls, setTrackingCalls] = useState({}); // Track ongoing API calls
 
   // API function to track enquiry
@@ -151,14 +189,6 @@ export default function HirepeopleDetails() {
     } else {
       Alert.alert('Error', 'Phone number not available');
     }
-  };
-
-  const handleImageError = (id) => {
-    console.log('=================== IMAGE ERROR ===================');
-    console.log('Failed to load image for ID:', id);
-    console.log('==================================================');
-    console.log('');
-    setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
   const fetchProfessionals = async () => {
@@ -304,9 +334,6 @@ export default function HirepeopleDetails() {
     console.log('======================================================');
     console.log('');
     
-    const hasImageError = imageErrors[item.id];
-    const showPlaceholder = !item.aatharimage || hasImageError;
-
     // Check if tracking is in progress for this item
     const isCallTracking = trackingCalls[`${item.id}_1`];
     const isWhatsAppTracking = trackingCalls[`${item.id}_2`];
@@ -317,18 +344,10 @@ export default function HirepeopleDetails() {
         style={styles.card}
       >
         <View style={styles.cardContent}>
-          {showPlaceholder ? (
-            <View style={styles.placeholder}>
-              <Ionicons name="person-circle-outline" size={60} color="#8B7355" />
-            </View>
-          ) : (
-            <Image
-              source={{ uri: item.aatharimage }}
-              style={styles.logo}
-              onError={() => handleImageError(item.id)}
-              resizeMode="cover"
-            />
-          )}
+          <ProfessionalImage
+            imageUrl={item.aatharimage}
+            style={styles.logo}
+          />
 
           <View style={styles.textGroupContainer}>
             <TouchableOpacity
@@ -622,17 +641,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     borderWidth: 2,
     borderColor: '#E8D5C4',
-  },
-  placeholder: {
-    width: '40%',
-    height: 150,
-    backgroundColor: '#F8F0E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E8D5C4',
-    borderStyle: 'dashed',
   },
   textGroupContainer: {
     flex: 1,

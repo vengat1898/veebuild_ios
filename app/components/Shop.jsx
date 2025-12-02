@@ -16,8 +16,50 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import logoimg from '../../assets/images/veebuilder.png';
 import { SessionContext } from '../../context/SessionContext.jsx';
 import api from "../services/api.jsx";
+
+// Custom Image component with proper error handling
+const VendorImage = ({ imageUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URL is valid before even trying to load
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    if (typeof url !== 'string') return false;
+    if (url.trim() === '') return false;
+    if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
+    if (!url.startsWith('http')) return false;
+    
+    // Additional checks for common problematic patterns
+    if (url.includes('default.jpg') || url.includes('placeholder')) return false;
+    if (url.includes('mas_sec/assets/images/vendor/Profile_')) {
+      // Check if it looks like a specific profile image pattern
+      // You can add more specific checks here
+    }
+    
+    return true;
+  };
+
+  // Determine if we should even try to load the URL
+  const shouldLoadImage = isValidUrl(imageUrl);
+
+  return (
+    <Image
+      source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
+      style={style}
+      defaultSource={logoimg}
+      onError={() => {
+        console.log('Image failed to load, using fallback:', imageUrl);
+        setImageError(true);
+      }}
+      onLoad={() => {
+        console.log('Image loaded successfully:', imageUrl);
+      }}
+    />
+  );
+};
 
 export default function Shop() {
   const { session, isSessionLoaded, clearSession } = useContext(SessionContext);
@@ -568,8 +610,8 @@ export default function Shop() {
     return (
       <View style={styles.card}>
         <View style={styles.cardContent}>
-          <Image
-            source={item.shop_image ? { uri: item.shop_image } : require('../../assets/images/veebuilder.png')}
+          <VendorImage
+            imageUrl={item.shop_image}
             style={styles.logo}
           />
           <View style={styles.textGroupContainer}>

@@ -14,8 +14,47 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import logoimg from '../../assets/images/veebuilder.png';
 import { SessionContext } from '../../context/SessionContext'; // Adjust import path
 import api from "../services/api";
+
+// Custom Image component with proper error handling
+const RealEstateImage = ({ imageUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URL is valid before even trying to load
+  const isValidUrl = (url) => {
+    if (!url) return false;
+    if (typeof url !== 'string') return false;
+    if (url.trim() === '') return false;
+    if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
+    if (!url.startsWith('http')) return false;
+    
+    // Additional checks for common problematic patterns
+    if (url.includes('default.jpg') || url.includes('placeholder')) return false;
+    
+    return true;
+  };
+
+  // Determine if we should even try to load the URL
+  const shouldLoadImage = isValidUrl(imageUrl);
+
+  return (
+    <Image
+      source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
+      style={style}
+      defaultSource={logoimg}
+      onError={() => {
+        console.log('Image failed to load, using fallback:', imageUrl);
+        setImageError(true);
+      }}
+      onLoad={() => {
+        console.log('Image loaded successfully:', imageUrl);
+      }}
+      resizeMode="cover"
+    />
+  );
+};
 
 export default function Realestate() {
   const [realEstateData, setRealEstateData] = useState([]);
@@ -136,17 +175,10 @@ export default function Realestate() {
   const renderCard = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardContent}>
-        {item.firstImage ? (
-          <Image
-            source={{ uri: item.firstImage }}
-            style={styles.propertyImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.propertyImage, styles.placeholderImage]}>
-            <Ionicons name="image" size={50} color="#ccc" />
-          </View>
-        )}
+        <RealEstateImage
+          imageUrl={item.firstImage}
+          style={styles.propertyImage}
+        />
 
         <View style={styles.textGroupContainer}>
           <TouchableOpacity
@@ -305,7 +337,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#f0f0f0",
   },
-  placeholderImage: { justifyContent: 'center', alignItems: 'center' },
   textGroupContainer: { flex: 1, marginLeft: 16 },
   textGroup: { flex: 1, justifyContent: 'flex-start', gap: 8 },
   title: { fontWeight: 'bold', fontSize: 15, color: '#333', textAlign: 'left' },

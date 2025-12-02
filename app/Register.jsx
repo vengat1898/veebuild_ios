@@ -8,21 +8,22 @@ import {
   Dimensions,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
+  Modal,
   Platform,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+  View
 } from 'react-native';
 import logoimg from '../assets/images/veebuilder.png';
 import { SessionContext } from '../context/SessionContext';
 import api from "./services/api";
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function Register() {
   const router = useRouter();
@@ -41,10 +42,32 @@ export default function Register() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [tempAddress, setTempAddress] = useState('');
+  const [tempSelectedLocation, setTempSelectedLocation] = useState(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // Get mobile and userId from params or session
   const mobile = params.mobile || session?.mobile || '';
   const userId = params.userId || session?.id || '';
+
+  // ✅ Keyboard listeners for modal positioning
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // ✅ Validation functions
   const validateName = (name) => {
@@ -99,7 +122,41 @@ export default function Register() {
     }
   };
 
-  // ✅ EXACTLY THE SAME ADDRESS FUNCTIONS 
+  // ✅ Open address modal (iOS style)
+  const openAddressModal = () => {
+    setTempAddress(address);
+    setTempSelectedLocation(selectedLocation);
+    setAddressModalVisible(true);
+  };
+
+  // ✅ Close address modal
+  const closeAddressModal = () => {
+    Keyboard.dismiss();
+    setAddressModalVisible(false);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // ✅ Save address from modal
+  const saveAddressFromModal = () => {
+    if (tempSelectedLocation) {
+      setAddress(tempSelectedLocation.displayName || tempAddress);
+      setSelectedLocation(tempSelectedLocation);
+    } else if (tempAddress.trim().length >= 5) {
+      setAddress(tempAddress);
+      const locationData = {
+        displayName: tempAddress,
+        main_text: tempAddress.split(',')[0],
+        secondary_text: tempAddress.substring(tempAddress.split(',')[0].length + 2),
+        latitude: "",
+        longitude: "",
+      };
+      setSelectedLocation(locationData);
+    }
+    closeAddressModal();
+  };
+
+  // ✅ Enhanced address search with structured results
   const searchAddressSuggestions = async (query) => {
     try {
       setSearching(true);
@@ -114,11 +171,17 @@ export default function Register() {
       const data = await response.json();
 
       if (data.status === "OK" && data.predictions.length > 0) {
-        const formattedSuggestions = data.predictions.map((item, index) => ({
-          id: item.id || `${item.place_id}-${index}`,
-          display_name: item.description,
-          place_id: item.place_id,
-        }));
+        const formattedSuggestions = data.predictions.map((item, index) => {
+          const parts = item.structured_formatting || {};
+          return {
+            id: item.id || `${item.place_id}-${index}`,
+            main_text: parts.main_text || item.description.split(',')[0],
+            secondary_text: parts.secondary_text || item.description.substring(parts.main_text?.length + 2) || '',
+            displayName: item.description,
+            place_id: item.place_id,
+            type: 'google'
+          };
+        });
         
         setSuggestions(formattedSuggestions);
       } else {
@@ -146,12 +209,18 @@ export default function Register() {
       const data = await response.json();
 
       if (data && data.length > 0) {
-        const formattedSuggestions = data.map((item, index) => ({
-          id: `${item.place_id}-${index}`,
-          display_name: item.display_name,
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-        }));
+        const formattedSuggestions = data.map((item, index) => {
+          const parts = item.display_name.split(',');
+          return {
+            id: `${item.place_id}-${index}`,
+            main_text: parts[0] || item.display_name,
+            secondary_text: parts.slice(1, 3).join(', ') || '',
+            displayName: item.display_name,
+            lat: parseFloat(item.lat),
+            lon: parseFloat(item.lon),
+            type: 'osm'
+          };
+        });
         
         setSuggestions(formattedSuggestions);
       } else {
@@ -164,22 +233,19 @@ export default function Register() {
   };
 
   const handleAddressSearch = (query) => {
-    setAddress(query);
-    setSelectedLocation(null); // Clear selected location when user types
+    setTempAddress(query);
+    setTempSelectedLocation(null);
 
-    // Clear previous timer
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
 
-    // Don't search for very short queries
     if (query.length < 3) {
       setShowSuggestions(false);
       setSuggestions([]);
       return;
     }
 
-    // Set new timer for debouncing
     const newTimer = setTimeout(async () => {
       await searchAddressSuggestions(query);
     }, 500);
@@ -188,21 +254,19 @@ export default function Register() {
   };
 
   const handleSuggestionSelect = async (suggestion) => {
-    setAddress(suggestion.display_name);
+    setTempAddress(suggestion.displayName);
     setShowSuggestions(false);
     setSuggestions([]);
+    Keyboard.dismiss();
     
     try {
       let latitude = "";
       let longitude = "";
 
-      // If we have lat/lon directly from OpenStreetMap
       if (suggestion.lat && suggestion.lon) {
         latitude = suggestion.lat.toString();
         longitude = suggestion.lon.toString();
-      } 
-      // If it's from Google Places API, we need to fetch coordinates
-      else if (suggestion.place_id) {
+      } else if (suggestion.place_id) {
         const coordinates = await fetchCoordinatesFromPlaceId(suggestion.place_id);
         if (coordinates) {
           latitude = coordinates.lat.toString();
@@ -210,41 +274,35 @@ export default function Register() {
         }
       }
 
-      // Store the selected location data
       const locationData = {
-        displayName: suggestion.display_name,
+        displayName: suggestion.displayName,
+        main_text: suggestion.main_text,
+        secondary_text: suggestion.secondary_text,
         latitude: latitude,
         longitude: longitude,
       };
       
-      setSelectedLocation(locationData);
-      
-      // Console all the data with proper spacing
-      console.log("📍 Selected Location Data:");
-      console.log("Display Name:", suggestion.display_name);
-      console.log("Latitude:", latitude);
-      console.log("Longitude:", longitude);
-      console.log("==========================================");
+      setTempSelectedLocation(locationData);
       
     } catch (error) {
       console.error("❌ Error fetching coordinates:", error);
-      // Still set the location data even if coordinates fail
       const locationData = {
-        displayName: suggestion.display_name,
+        displayName: suggestion.displayName,
+        main_text: suggestion.main_text,
+        secondary_text: suggestion.secondary_text,
         latitude: "",
         longitude: "",
       };
-      setSelectedLocation(locationData);
+      setTempSelectedLocation(locationData);
     }
   };
 
-  // ✅ New function to fetch coordinates from Google Place ID
   const fetchCoordinatesFromPlaceId = async (placeId) => {
     try {
       const GOOGLE_API_KEY = "AIzaSyAr3P4anv6bZgHKOk6e1tW1qD7GFS2K7ro";
       
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${GOOGLE_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,formatted_address,name&key=${GOOGLE_API_KEY}`
       );
 
       const data = await response.json();
@@ -261,8 +319,8 @@ export default function Register() {
     }
   };
 
-  // ✅ Get current location - EXACTLY THE SAME AS NewCustomerRegister()
-  const getCurrentLocation = async () => {
+  // ✅ Get current location in modal
+  const getCurrentLocationInModal = async () => {
     try {
       setLocationLoading(true);
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -292,28 +350,22 @@ export default function Register() {
         ].filter(Boolean);
 
         const fullAddress = addressParts.join(", ");
-        setAddress(fullAddress);
+        setTempAddress(fullAddress);
         setShowSuggestions(false);
         setSuggestions([]);
+        Keyboard.dismiss();
         
-        // Store the current location data
         const locationData = {
           displayName: fullAddress,
+          main_text: place.name || place.street || "Current Location",
+          secondary_text: [place.city, place.region, place.postalCode].filter(Boolean).join(', '),
           latitude: location.coords.latitude.toString(),
           longitude: location.coords.longitude.toString(),
           addressDetails: place,
           city: place.city || "Chennai"
         };
         
-        setSelectedLocation(locationData);
-        
-        // Console all the data with proper spacing
-        console.log("📍 Current Location Data:");
-        console.log("Display Name:", fullAddress);
-        console.log("City:", place.city);
-        console.log("Latitude:", location.coords.latitude);
-        console.log("Longitude:", location.coords.longitude);
-        console.log("==========================================");
+        setTempSelectedLocation(locationData);
       } else {
         Alert.alert("Error", "Unable to fetch address from location");
       }
@@ -325,7 +377,7 @@ export default function Register() {
     }
   };
 
-  // ✅ Render suggestions without FlatList to avoid VirtualizedList nesting
+  // ✅ Render suggestions in modal
   const renderSuggestions = () => {
     return suggestions.map((item) => (
       <TouchableOpacity
@@ -333,10 +385,22 @@ export default function Register() {
         style={styles.suggestionItem}
         onPress={() => handleSuggestionSelect(item)}
       >
-        <Feather name="map-pin" size={16} color="#666" />
-        <Text style={styles.suggestionText} numberOfLines={2}>
-          {item.display_name}
-        </Text>
+        <View style={styles.suggestionIconContainer}>
+          <Ionicons 
+            name={item.type === 'google' ? 'business' : 'location-outline'} 
+            size={18} 
+            color="#666" 
+          />
+        </View>
+        <View style={styles.suggestionTextContainer}>
+          <Text style={styles.suggestionMainText} numberOfLines={1}>
+            {item.main_text}
+          </Text>
+          <Text style={styles.suggestionSecondaryText} numberOfLines={2}>
+            {item.secondary_text}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#ccc" />
       </TouchableOpacity>
     ));
   };
@@ -363,10 +427,6 @@ export default function Register() {
     );
   }, [name, email, address]);
 
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
-
   const handleRegister = async () => {
     // Final validation before submission
     const nameError = validateName(name);
@@ -389,17 +449,15 @@ export default function Register() {
 
     setIsLoading(true);
     try {
-      // Get current location if not already available
       let latitude = "";
       let longitude = "";
-      let city = "Chennai"; // Default city
+      let city = "Chennai";
       
       if (selectedLocation?.latitude && selectedLocation?.longitude) {
         latitude = selectedLocation.latitude;
         longitude = selectedLocation.longitude;
         city = selectedLocation.city || "Chennai";
       } else {
-        // Get current location
         setLocationLoading(true);
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
@@ -407,7 +465,6 @@ export default function Register() {
           latitude = currentLocation.coords.latitude.toString();
           longitude = currentLocation.coords.longitude.toString();
           
-          // Get city from coordinates
           const geocode = await Location.reverseGeocodeAsync({ 
             latitude: currentLocation.coords.latitude, 
             longitude: currentLocation.coords.longitude 
@@ -420,22 +477,20 @@ export default function Register() {
         setLocationLoading(false);
       }
 
-      // ✅ Match the EXACT same parameters as your working log
       const requestData = {
         mobile: mobile,
         name: name.trim(),
         email: email.trim().toLowerCase(),
         type: '1',
         userId: userId,
-        location: address.trim(), // Full address
-        city: city, // City name
-        gst_lattitude: latitude || "13.0827", // Default to Chennai coordinates if empty
+        location: address.trim(),
+        city: city,
+        gst_lattitude: latitude || "13.0827",
         gst_longitude: longitude || "80.2707"
       };
 
       console.log('📡 Registration data:', JSON.stringify(requestData, null, 2));
 
-      // Create FormData
       const formData = new FormData();
       for (const key in requestData) {
         formData.append(key, requestData[key]);
@@ -456,7 +511,6 @@ export default function Register() {
       console.log('✅ Registration response:', data);
 
       if (data.success === 1 || data.result === "success") {
-        // Update session with complete user data
         await saveSession({
           ...session,
           name: name.trim(),
@@ -498,364 +552,662 @@ export default function Register() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={dismissKeyboard}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          <View style={styles.container}>
-            <Image source={logoimg} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.heading}>Complete Registration</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={22} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Complete Registration</Text>
+          <View style={styles.headerRight} />
+        </View>
 
-            {/* Name Input with Error */}
-            <View style={styles.inputWrapper}>
-              <FontAwesome name="user" size={20} color="#1e90ff" style={styles.icon} />
+        <View style={styles.content}>
+          {/* Logo - Increased Size */}
+          <View style={styles.logoContainer}>
+            <Image source={logoimg} style={styles.logo} resizeMode="contain" />
+          </View>
+
+          {/* Name Input */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <View style={[styles.inputContainer, errors.name && styles.inputError]}>
+              <FontAwesome name="user" size={18} color="#8E8E93" style={styles.inputIcon} />
               <TextInput
-                style={[
-                  styles.input, 
-                  errors.name && styles.inputError
-                ]}
-                placeholder="Full Name (letters only)"
+                style={styles.input}
+                placeholder="Enter your full name"
+                placeholderTextColor="#8E8E93"
                 value={name}
                 onChangeText={handleNameChange}
-                onBlur={() => setErrors(prev => ({ ...prev, name: validateName(name) }))}
                 autoCapitalize="words"
                 maxLength={50}
                 returnKeyType="next"
               />
             </View>
             {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+          </View>
 
-            {/* Mobile Input */}
-            <View style={styles.inputWrapper}>
-              <FontAwesome name="phone" size={20} color="#1e90ff" style={styles.icon} />
+          {/* Mobile Input */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Mobile Number</Text>
+            <View style={[styles.inputContainer, styles.disabledInput]}>
+              <FontAwesome name="phone" size={18} color="#8E8E93" style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, styles.disabledInput]}
+                style={styles.input}
                 value={mobile}
                 editable={false}
-                placeholder="Mobile Number"
+                placeholderTextColor="#8E8E93"
               />
             </View>
+          </View>
 
-            {/* Email Input with Error */}
-            <View style={styles.inputWrapper}>
-              <FontAwesome name="envelope" size={20} color="#1e90ff" style={styles.icon} />
+          {/* Email Input */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+              <FontAwesome name="envelope" size={18} color="#8E8E93" style={styles.inputIcon} />
               <TextInput
-                style={[
-                  styles.input, 
-                  errors.email && styles.inputError
-                ]}
-                placeholder="Email (e.g., example@gmail.com)"
+                style={styles.input}
+                placeholder="example@email.com"
+                placeholderTextColor="#8E8E93"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={email}
                 onChangeText={handleEmailChange}
-                onBlur={() => setErrors(prev => ({ ...prev, email: validateEmail(email) }))}
                 maxLength={100}
                 returnKeyType="next"
               />
             </View>
             {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+          </View>
 
-            {/* ✅ Address Section */}
-            <View style={styles.addressSection}>
-              <Text style={styles.inputLabel}>Address *</Text>
-              
-              {/* Show coordinates if available */}
-              {selectedLocation?.latitude && (
-                <View style={styles.locationStatus}>
-                  <Ionicons name="checkmark-circle-outline" size={16} color="#29CB56" />
-                  <Text style={styles.locationStatusText}>
-                    Coordinates ready: {selectedLocation.latitude}, {selectedLocation.longitude}
-                  </Text>
-                </View>
-              )}
-
-              {/* Show warning if no coordinates */}
-              {(!selectedLocation?.latitude && address.length > 0) && (
-                <View style={styles.locationWarning}>
-                  <Ionicons name="information-circle-outline" size={16} color="#1e90ff" />
-                  <Text style={styles.locationWarningText}>
-                    Will use current location coordinates when registering
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.addressContainer}>
-                <TextInput
-                  style={[
-                    styles.input, 
-                    styles.addressInput, 
-                    errors.address && styles.inputError,
-                    showSuggestions && styles.inputWithSuggestions
-                  ]}
-                  placeholder="Start typing your address..."
-                  placeholderTextColor="#999"
-                  value={address}
-                  onChangeText={handleAddressSearch}
-                  multiline={true}
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  returnKeyType="done"
-                  onBlur={() => setErrors(prev => ({ ...prev, address: validateAddress(address) }))}
-                />
-                <TouchableOpacity
-                  onPress={getCurrentLocation}
-                  style={styles.locationButton}
-                  disabled={locationLoading}
-                >
-                  {locationLoading ? (
-                    <ActivityIndicator size="small" color="#1e90ff" />
-                  ) : (
-                    <Ionicons name="location-outline" size={22} color="#29CB56" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Address Suggestions - Using manual mapping instead of FlatList */}
-              {showSuggestions && suggestions.length > 0 && (
-                <View style={[
-                  styles.suggestionsContainer,
-                  suggestions.length > 3 && styles.suggestionsContainerLarge
-                ]}>
-                  <ScrollView 
-                    style={styles.suggestionsList}
-                    nestedScrollEnabled={true}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {renderSuggestions()}
-                  </ScrollView>
-                </View>
-              )}
-
-              {showSuggestions && suggestions.length === 0 && !searching && (
-                <View style={styles.noSuggestions}>
-                  <Text style={styles.noSuggestionsText}>
-                    No addresses found. Try being more specific.
-                  </Text>
-                </View>
-              )}
+          {/* Address Input - iOS Style */}
+          <View style={styles.inputSection}>
+            <View style={styles.addressLabelRow}>
+              <Text style={styles.inputLabel}>Address</Text>
+              <TouchableOpacity
+                onPress={openAddressModal}
+                style={styles.editAddressButton}
+              >
+                <Text style={styles.editAddressText}>
+                  {address ? 'Edit' : 'Add Address'}
+                </Text>
+              </TouchableOpacity>
             </View>
+            
+            {address ? (
+              <TouchableOpacity 
+                style={styles.addressDisplay}
+                onPress={openAddressModal}
+              >
+                <View style={styles.addressIconContainer}>
+                  <Ionicons name="location-sharp" size={20} color="#007AFF" />
+                </View>
+                <View style={styles.addressTextContainer}>
+                  <Text style={styles.addressMainText} numberOfLines={1}>
+                    {selectedLocation?.main_text || address.split(',')[0]}
+                  </Text>
+                  <Text style={styles.addressSubText} numberOfLines={2}>
+                    {selectedLocation?.secondary_text || address.substring(address.split(',')[0].length + 2)}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.addAddressButton}
+                onPress={openAddressModal}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+                <Text style={styles.addAddressText}>Add your address</Text>
+              </TouchableOpacity>
+            )}
             {errors.address ? <Text style={styles.errorText}>{errors.address}</Text> : null}
+          </View>
 
+          {/* Register Button */}
+          <TouchableOpacity 
+            style={[
+              styles.registerButton, 
+              (!isFormValid || isLoading) && styles.registerButtonDisabled
+            ]} 
+            onPress={handleRegister}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.registerButtonText}>Complete Registration</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* iOS Style Address Modal - FIXED */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={addressModalVisible}
+        onRequestClose={closeAddressModal}
+        statusBarTranslucent={Platform.OS === 'ios'}
+      >
+        <SafeAreaView style={styles.modalSafeArea}>
+          {/* Modal Header - Fixed at top */}
+          <View style={styles.modalHeader}>
             <TouchableOpacity 
-              style={[
-                styles.button, 
-                (!isFormValid || isLoading) && styles.buttonDisabled
-              ]} 
-              onPress={handleRegister}
-              disabled={!isFormValid || isLoading}
+              style={styles.modalCloseButton}
+              onPress={closeAddressModal}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Register</Text>
-              )}
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Address</Text>
+            <TouchableOpacity 
+              style={styles.modalSaveButton}
+              onPress={saveAddressFromModal}
+              disabled={!tempAddress.trim()}
+            >
+              <Text style={[
+                styles.modalSaveText,
+                !tempAddress.trim() && styles.modalSaveTextDisabled
+              ]}>
+                Save
+              </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+
+          {/* Search Bar - Fixed below header */}
+          <View style={styles.modalSearchContainer}>
+            <View style={styles.modalSearchBar}>
+              <Feather name="search" size={18} color="#8E8E93" style={styles.modalSearchIcon} />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search for address, area, or landmark..."
+                placeholderTextColor="#8E8E93"
+                value={tempAddress}
+                onChangeText={handleAddressSearch}
+                autoFocus={true}
+                returnKeyType="search"
+              />
+              {tempAddress.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setTempAddress('');
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                  }}
+                  style={styles.modalClearButton}
+                >
+                  <Ionicons name="close-circle" size={18} color="#C7C7CC" />
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <TouchableOpacity
+              onPress={getCurrentLocationInModal}
+              style={styles.modalCurrentLocation}
+              disabled={locationLoading}
+            >
+              <Ionicons name="navigate" size={18} color="#007AFF" />
+              <Text style={styles.modalCurrentLocationText}>
+                {locationLoading ? 'Getting location...' : 'Use current location'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Suggestions List - SCROLLABLE AREA */}
+          <View style={[
+            styles.suggestionsWrapper,
+            isKeyboardVisible && { height: height - keyboardHeight - 180 }
+          ]}>
+            <ScrollView 
+              style={styles.suggestionsContainer}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.suggestionsContent}
+            >
+              {searching ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#007AFF" />
+                  <Text style={styles.loadingText}>Searching addresses...</Text>
+                </View>
+              ) : suggestions.length > 0 ? (
+                <>
+                  <View style={styles.suggestionsHeader}>
+                    <Text style={styles.suggestionsTitle}>SUGGESTIONS</Text>
+                  </View>
+                  {renderSuggestions()}
+                </>
+              ) : tempAddress.length >= 3 && !searching ? (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="location-outline" size={50} color="#E5E5EA" />
+                  <Text style={styles.noResultsTitle}>No results found</Text>
+                  <Text style={styles.noResultsText}>
+                    Try searching with different keywords
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="search" size={50} color="#E5E5EA" />
+                  <Text style={styles.emptyStateTitle}>Search for your address</Text>
+                  <Text style={styles.emptyStateText}>
+                    Enter your street, area, or landmark to find your location
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 20,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
   },
-  logo: {
-    width: 200,
-    height: 200,
-    alignSelf: 'center',
-    marginBottom: 20,
+  scrollContent: {
+    flexGrow: 1,
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#795805ff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  inputWrapper: {
+  
+  // Header
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 10,
-    paddingHorizontal: 15,
-    backgroundColor: '#fff',
-    height: 50,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5EA',
   },
-  icon: {
+  backButton: {
+    padding: 6,
+  },
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  headerRight: {
+    width: 40,
+  },
+  
+  // Content
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  
+  // Logo Section - Increased Size
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+  },
+  
+  // Input Sections
+  inputSection: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  inputIcon: {
     marginRight: 10,
   },
   input: {
     flex: 1,
+    fontSize: 15,
+    color: '#000',
     height: '100%',
-    fontSize: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   disabledInput: {
-    color: '#666',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F2F2F7',
+    opacity: 0.7,
   },
   inputError: {
-    borderColor: '#ff0000',
+    borderWidth: 0.5,
+    borderColor: '#FF3B30',
   },
   errorText: {
-    color: '#ff0000',
     fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 10,
-  },
-  button: {
-    height: 50,
-    backgroundColor: '#795805ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  buttonDisabled: {
-    backgroundColor: '#cccccc',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: '#FF3B30',
+    marginTop: 4,
+    marginLeft: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   
-  // ✅ EXACTLY THE SAME ADDRESS STYLES AS NewCustomerRegister
-  addressSection: {
-    marginBottom: 10,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginLeft: 5,
-  },
-  addressContainer: {
+  // Address Section
+  addressLabelRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  addressInput: {
+  editAddressButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  editAddressText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  addressDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    padding: 14,
+  },
+  addressIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5F1FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  addressTextContainer: {
     flex: 1,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    backgroundColor: '#fff',
   },
-  inputWithSuggestions: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+  addressMainText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  locationButton: {
+  addressSubText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  addAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    padding: 14,
+  },
+  addAddressText: {
+    fontSize: 15,
+    color: '#007AFF',
     marginLeft: 10,
-    padding: 10,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  
+  // Register Button
+  registerButton: {
+    height: 50,
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    height: 44,
-  },
-  
-  // Location status indicators
-  locationWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E6F3FF',
-    padding: 8,
-    borderRadius: 5,
-    marginBottom: 8,
-  },
-  locationWarningText: {
-    fontSize: 12,
-    color: '#1e90ff',
-    marginLeft: 5,
-  },
-  locationStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E9F8EF',
-    padding: 8,
-    borderRadius: 5,
-    marginBottom: 8,
-  },
-  locationStatusText: {
-    fontSize: 12,
-    color: '#29CB56',
-    marginLeft: 5,
-  },
-  
-  // Suggestions Styles - Same as NewCustomerRegister
-  suggestionsContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    maxHeight: 150,
+    borderRadius: 12,
+    marginTop: 25,
+    marginBottom: 30,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
-  suggestionsContainerLarge: {
-    maxHeight: 200,
+  registerButtonDisabled: {
+    backgroundColor: '#C7C7CC',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  suggestionsList: {
-    flexGrow: 0,
+  registerButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
+  
+  // Modal Styles
+  modalSafeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  
+  // Modal Header - Fixed at top
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#ffffff',
+  },
+  modalCloseButton: {
+    padding: 6,
+  },
+  modalCloseText: {
+    fontSize: 15,
+    color: '#007AFF',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  modalSaveButton: {
+    padding: 6,
+  },
+  modalSaveText: {
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  modalSaveTextDisabled: {
+    color: '#C7C7CC',
+  },
+  
+  // Modal Search - Fixed below header
+  modalSearchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#ffffff',
+  },
+  modalSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+    marginBottom: 10,
+  },
+  modalSearchIcon: {
+    marginRight: 8,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#000',
+    height: '100%',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  modalClearButton: {
+    padding: 3,
+  },
+  modalCurrentLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  modalCurrentLocationText: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginLeft: 6,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  
+  // Suggestions Wrapper - Dynamic height based on keyboard
+  suggestionsWrapper: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  
+  // Suggestions Container
+  suggestionsContainer: {
+    flex: 1,
+  },
+  
+  suggestionsContent: {
+    flexGrow: 1,
+  },
+  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 10,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  suggestionsHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#F2F2F7',
+  },
+  suggestionsTitle: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  
+  // Suggestion Item
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F2F2F7',
   },
-  suggestionText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-    marginLeft: 10,
-  },
-  noSuggestions: {
-    padding: 15,
+  suggestionIconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    marginRight: 10,
   },
-  noSuggestionsText: {
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionMainText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  suggestionSecondaryText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    lineHeight: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  
+  // Empty States
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 40,
+  },
+  noResultsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 12,
+    marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  noResultsText: {
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E93',
     textAlign: 'center',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 12,
+    marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

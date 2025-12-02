@@ -1,22 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SessionContext } from '../../context/SessionContext'; // Adjust path as needed
 import api from "../services/api";
 
 export default function Search() {
   const navigation = useNavigation();
   const router = useRouter();
+  const { getUserIdSync, session, isSessionLoaded } = useContext(SessionContext);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [storeList, setStoreList] = useState([]);
@@ -27,30 +28,49 @@ export default function Search() {
 
   useEffect(() => {
     console.log('\n================= COMPONENT MOUNTED =================');
+    
+    // Load user ID from session context
     const loadUserId = async () => {
       try {
-        console.log('\n--- Loading User ID from AsyncStorage ---');
-        const storedUserId = await AsyncStorage.getItem('userId');
-        console.log('AsyncStorage Key:', 'userId');
-        console.log('Retrieved Value:', storedUserId);
+        console.log('\n--- Loading User ID from Session Context ---');
         
-        if (storedUserId) {
-          setUserId(storedUserId);
-          console.log('✅ User ID Set Successfully:', storedUserId);
-          console.log('User ID Type:', typeof storedUserId);
+        if (!isSessionLoaded) {
+          console.log('⚠️ Session not loaded yet, waiting...');
+          return;
+        }
+        
+        // Option 1: Use getUserIdSync (synchronous)
+        const syncUserId = getUserIdSync();
+        console.log('Sync User ID:', syncUserId);
+        
+        // Option 2: Use session directly
+        if (session && session.id) {
+          console.log('Session User ID:', session.id);
+          console.log('Session Data:', session);
+          setUserId(session.id);
+          console.log('✅ User ID Set Successfully:', session.id);
         } else {
-          console.log('❌ No User ID found in AsyncStorage');
+          console.log('❌ No session found or user not logged in');
+          console.log('Current Session:', session);
+          setUserId(null);
         }
       } catch (error) {
-        console.log('💥 AsyncStorage Error:');
+        console.log('💥 Session Context Error:');
         console.log('Error Message:', error.message);
-        console.log('Error Stack:', error.stack);
-        console.error('Failed to load user ID:', error);
+        console.error('Failed to load user ID from session:', error);
       }
     };
 
     loadUserId();
-  }, []);
+  }, [isSessionLoaded, session, getUserIdSync]);
+
+  // Alternative: Listen for session changes
+  useEffect(() => {
+    if (session?.id && session.id !== userId) {
+      console.log('🔄 Session updated, setting new user ID:', session.id);
+      setUserId(session.id);
+    }
+  }, [session]);
 
   const fetchStoreList = async () => {
     console.log('\n================= FETCHING STORE LIST =================');
@@ -170,6 +190,8 @@ export default function Search() {
     console.log('\n================= USEEFFECT TRIGGERED =================');
     console.log('User ID Value:', userId);
     console.log('User ID Type:', typeof userId);
+    console.log('Session Loaded:', isSessionLoaded);
+    console.log('Current Session:', session);
     
     console.log('Calling fetchStoreList...');
     fetchStoreList();
@@ -293,7 +315,7 @@ export default function Search() {
           <Ionicons name="search" size={20} color="#8B4513" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search stores..."
+            placeholder="Search Materials..."
             placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={(text) => {
@@ -438,12 +460,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#fff',
     fontWeight: 'bold',
-    
     marginTop: 5,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
   },
   searchContainer: {
     padding: 20,

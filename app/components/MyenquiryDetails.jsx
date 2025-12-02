@@ -15,12 +15,75 @@ export default function MyenquiryDetails() {
 
   const [selectedStatus, setSelectedStatus] = useState("Pending");
   const [enquiries, setEnquiries] = useState([]);
+  const [counts, setCounts] = useState({
+    Pending: 0,
+    Completed: 0,
+    Rejected: 0
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const statusMap = {
     Pending: 0,
     Completed: 2,
     Rejected: 1,
   };
+
+  const statusColors = {
+    Pending: "#D4A574",
+    Completed: "#8B7355",
+    Rejected: "#A52A2A"
+  };
+
+  useEffect(() => {
+    const fetchAllCounts = async () => {
+      const userId = customer_id || (session && session.id);
+      if (!userId) return;
+
+      setIsLoading(true);
+      try {
+        // Fetch counts for all statuses in parallel
+        const countPromises = Object.entries(statusMap).map(async ([status, statusCode]) => {
+          const normalizedTitle = title?.toLowerCase().trim();
+          let url = "";
+
+          if (normalizedTitle === "real estate enquiry") {
+            url = `real_estate_enquiry_list.php?user_id=${userId}&status=${statusCode}`;
+          } else if (normalizedTitle === "hire people enquiry") {
+            url = `hire_enquiry_list.php?user_id=${userId}&status=${statusCode}`;
+          } else if (normalizedTitle === "material enquiry") {
+            url = `my_enquery.php?user_id=${userId}&status=${statusCode}`;
+          } else {
+            return { status, count: 0 };
+          }
+
+          try {
+            const response = await api.get(url);
+            const count = response.data.success === 1 && Array.isArray(response.data.storeList) 
+              ? response.data.storeList.length 
+              : 0;
+            return { status, count };
+          } catch (error) {
+            console.error(`Error fetching ${status} count:`, error);
+            return { status, count: 0 };
+          }
+        });
+
+        const results = await Promise.all(countPromises);
+        const newCounts = {};
+        results.forEach(result => {
+          newCounts[result.status] = result.count;
+        });
+        
+        setCounts(newCounts);
+      } catch (error) {
+        console.error("Error fetching counts:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllCounts();
+  }, [session, customer_id, title]);
 
   useEffect(() => {
     const fetchEnquiries = async () => {
@@ -30,11 +93,7 @@ export default function MyenquiryDetails() {
       try {
         const statusCode = statusMap[selectedStatus];
         let url = "";
-
-        // Normalize the title for comparison
         const normalizedTitle = title?.toLowerCase().trim();
-
-        console.log("📋 Normalized Title:", normalizedTitle);
 
         if (normalizedTitle === "real estate enquiry") {
           url = `real_estate_enquiry_list.php?user_id=${userId}&status=${statusCode}`;
@@ -43,20 +102,11 @@ export default function MyenquiryDetails() {
         } else if (normalizedTitle === "material enquiry") {
           url = `my_enquery.php?user_id=${userId}&status=${statusCode}`;
         } else {
-          console.log("❌ Unknown enquiry type:", normalizedTitle);
           setEnquiries([]);
           return;
         }
 
-        console.log("\n==============================");
-        console.log("📡 API Request URL:", url);
-        console.log("==============================\n");
-
         const response = await api.get(url);
-
-        console.log("\n==============================");
-        console.log("📩 API Response:", JSON.stringify(response.data, null, 2));
-        console.log("==============================\n");
 
         if (response.data.success === 1 && Array.isArray(response.data.storeList)) {
           setEnquiries(response.data.storeList);
@@ -64,7 +114,7 @@ export default function MyenquiryDetails() {
           setEnquiries([]);
         }
       } catch (error) {
-        console.error("\n❌ Error fetching enquiry data:", error, "\n");
+        console.error("Error fetching enquiry data:", error);
         setEnquiries([]);
       }
     };
@@ -87,8 +137,7 @@ export default function MyenquiryDetails() {
         <Text style={[
           styles.value, 
           { 
-            color: selectedStatus === "Pending" ? "#D4A574" : 
-                   selectedStatus === "Completed" ? "#8B7355" : "#A52A2A",
+            color: statusColors[selectedStatus],
             fontWeight: "bold" 
           }
         ]}>
@@ -110,7 +159,7 @@ export default function MyenquiryDetails() {
         <Text style={styles.messageText}>{item.message || item.description || item.enquiry_message || "N/A"}</Text>
       </View>
 
-      {/* Vendor Reply Box - Only show if vendor_reply exists and is not empty */}
+      {/* Vendor Reply Box */}
       {(item.vendor_reply && item.vendor_reply.trim() !== "") && (
         <View style={[styles.messageBox, styles.vendorReplyBox]}>
           <View style={styles.vendorReplyHeader}>
@@ -121,7 +170,6 @@ export default function MyenquiryDetails() {
         </View>
       )}
 
-      {/* Show message if no vendor reply */}
       {(!item.vendor_reply || item.vendor_reply.trim() === "") && (
         <View style={[styles.messageBox, styles.noReplyBox]}>
           <Text style={styles.noReplyText}>
@@ -148,16 +196,24 @@ export default function MyenquiryDetails() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={28} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>{title}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerText}>{title}</Text>
+          <Text style={styles.headerSubtitle}>{enquiries.length} {selectedStatus.toLowerCase()} enquiry{enquiries.length !== 1 ? 's' : ''}</Text>
+        </View>
       </LinearGradient>
 
-      {/* Status Filter */}
+      {/* Status Filter with Counts */}
       <View style={styles.statusContainer}>
         {["Pending", "Completed", "Rejected"].map((status) => (
           <TouchableOpacity
             key={status}
-            style={[styles.statusButton, selectedStatus === status && styles.selectedStatusButton]}
-            onPress={() => setSelectedStatus(status)}
+            style={[
+              styles.statusButton,
+              selectedStatus === status && styles.selectedStatusButton,
+              isLoading && styles.statusButtonDisabled
+            ]}
+            onPress={() => !isLoading && setSelectedStatus(status)}
+            disabled={isLoading}
           >
             <Text
               style={[
@@ -167,9 +223,30 @@ export default function MyenquiryDetails() {
             >
               {status}
             </Text>
+            
+            {/* Count Badge */}
+            <View style={[
+              styles.countBadge,
+              selectedStatus === status && styles.selectedCountBadge
+            ]}>
+              <Text style={[
+                styles.countText,
+                selectedStatus === status && styles.selectedCountText
+              ]}>
+                {isLoading ? "..." : counts[status]}
+              </Text>
+            </View>
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Loading Indicator */}
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="refresh" size={30} color="#8B4513" />
+          <Text style={styles.loadingText}>Loading counts...</Text>
+        </View>
+      )}
 
       {/* Enquiry List */}
       {enquiries.length > 0 ? (
@@ -180,10 +257,21 @@ export default function MyenquiryDetails() {
           contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
         />
       ) : (
-        selectedStatus && (
+        selectedStatus && !isLoading && (
           <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={60} color="#8B4513" />
-            <Text style={styles.emptyText}>No enquiries found</Text>
+            <Ionicons 
+              name={counts[selectedStatus] === 0 ? "document-text-outline" : "checkmark-circle"} 
+              size={60} 
+              color="#8B4513" 
+            />
+            <Text style={styles.emptyText}>
+              {counts[selectedStatus] === 0 
+                ? "No enquiries found" 
+                : "No enquiries in this status"}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              Total {selectedStatus.toLowerCase()} enquiries: {counts[selectedStatus]}
+            </Text>
           </View>
         )
       )}
@@ -213,14 +301,21 @@ const styles = StyleSheet.create({
     marginRight: 12,
     padding: 4,
   },
+  headerTitleContainer: {
+    flex: 1,
+  },
   headerText: {
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
-    flex: 1,
     textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 2,
   },
   statusContainer: {
     marginTop: Platform.OS === "android" ? 80 + RNStatusBar.currentHeight : 80,
@@ -231,7 +326,7 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     paddingVertical: 10,
-    paddingHorizontal: 25,
+    paddingHorizontal: 15,
     borderRadius: 7,
     backgroundColor: "#fff",
     borderWidth: 1.5,
@@ -241,6 +336,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    alignItems: "center",
+    minWidth: 90,
+    position: "relative",
+  },
+  statusButtonDisabled: {
+    opacity: 0.7,
   },
   selectedStatusButton: {
     backgroundColor: "#8B4513",
@@ -250,9 +351,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#8B4513",
+    marginBottom: 4,
   },
   selectedStatusButtonText: {
     color: "#fff",
+  },
+  countBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#8B4513",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  selectedCountBadge: {
+    backgroundColor: "#fff",
+    borderColor: "#fff",
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#8B4513",
+  },
+  selectedCountText: {
+    color: "#8B4513",
   },
   detailsBox: {
     marginHorizontal: 16,
@@ -343,6 +471,19 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
   },
+  loadingContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    padding: 10,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#8B4513",
+    marginLeft: 10,
+    fontStyle: "italic",
+  },
   emptyState: {
     flex: 1,
     justifyContent: "center",
@@ -355,5 +496,11 @@ const styles = StyleSheet.create({
     color: "#8B4513",
     marginTop: 12,
     fontWeight: "500",
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 8,
+    fontStyle: "italic",
   },
 });
