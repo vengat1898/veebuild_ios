@@ -1,7 +1,6 @@
 // components/LocationSelector.js
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -18,6 +17,9 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
+// Your Google Places API Key
+const GOOGLE_PLACES_API_KEY = "AIzaSyAr3P4anv6bZgHKOk6e1tW1qD7GFS2K7ro";
+
 const LocationSelector = ({ 
   currentLocation, 
   onLocationChange, 
@@ -30,36 +32,18 @@ const LocationSelector = ({
   const [recentLocations, setRecentLocations] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(currentLocation);
+  const [locationDetails, setLocationDetails] = useState(null);
 
-  // Function to extract short location name from full address
-  const getShortLocationName = (address) => {
-    if (!address) return 'Unknown Location';
+  // Helper function to extract state from description
+  const extractStateFromDescription = (description) => {
+    if (!description) return '';
     
-    // Extract city, town, village, or district from the address
-    // The address format usually starts with the most specific location
-    const parts = address.split(',');
-    
-    if (parts.length > 0) {
-      // Return the first part (most specific location)
-      const shortName = parts[0].trim();
-      return shortName || 'Unknown Location';
+    // Description format is usually "City, State, Country"
+    const parts = description.split(',');
+    if (parts.length >= 2) {
+      return parts[1].trim();
     }
-    
-    return address;
-  };
-
-  // Function to extract location name from reverse geocoding
-  const getLocationFromAddress = (address) => {
-    if (!address || address.length === 0) return 'Current Location';
-    
-    const location = address[0];
-    // Priority: district -> subregion -> region -> city -> country
-    return location.district || 
-           location.subregion || 
-           location.region || 
-           location.city || 
-           location.country || 
-           'Current Location';
+    return '';
   };
 
   // Load recent locations on component mount
@@ -71,18 +55,43 @@ const LocationSelector = ({
     try {
       const savedLocations = await AsyncStorage.getItem('recentLocations');
       if (savedLocations) {
-        setRecentLocations(JSON.parse(savedLocations));
+        const parsedLocations = JSON.parse(savedLocations);
+        
+        // Convert old string format to new object format for backward compatibility
+        const formattedLocations = parsedLocations.map(loc => {
+          if (typeof loc === 'string') {
+            return {
+              name: loc,
+              display_name: loc,
+              city: loc,
+              timestamp: Date.now()
+            };
+          }
+          return loc;
+        });
+        
+        setRecentLocations(formattedLocations);
       }
     } catch (error) {
       console.error('Error loading recent locations:', error);
     }
   };
 
-  const saveToRecentLocations = async (location) => {
+  const saveToRecentLocations = async (locationData) => {
     try {
+      // Create a location object with city details
+      const locationObj = {
+        ...locationData,
+        timestamp: Date.now()
+      };
+      
+      // Filter out duplicates based on city name
       const updatedLocations = [
-        location,
-        ...recentLocations.filter(loc => loc.toLowerCase() !== location.toLowerCase())
+        locationObj,
+        ...recentLocations.filter(loc => {
+          const existingCity = typeof loc === 'string' ? loc : loc.city;
+          return existingCity?.toLowerCase() !== locationData.city?.toLowerCase();
+        })
       ].slice(0, 5); // Keep only last 5 locations
       
       setRecentLocations(updatedLocations);
@@ -92,8 +101,8 @@ const LocationSelector = ({
     }
   };
 
-  // Search location suggestions
-  const searchLocations = useCallback(async (query) => {
+  // Search cities using Google Places API
+  const searchCities = useCallback(async (query) => {
     if (!query || query.length < 2) {
       setSuggestions([]);
       return;
@@ -101,42 +110,47 @@ const LocationSelector = ({
 
     setLoadingSuggestions(true);
     try {
-      // Using OpenStreetMap Nominatim API for location search
-      const response = await axios.get(
-        `https://nominatim.openstreetmap.org/search`,
-        {
-          params: {
-            q: query,
-            format: 'json',
-            addressdetails: 1,
-            limit: 10,
-            countrycodes: 'in', // Limit to India
-            'accept-language': 'en', // English results
-          },
-          timeout: 5000,
-        }
+      // Google Places Autocomplete API with type=locality for cities
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?` +
+        `input=${encodeURIComponent(query)}` +
+        `&types=(cities)` +  // Only cities
+        `&components=country:in` +  // Limit to India
+        `&key=${GOOGLE_PLACES_API_KEY}` +
+        `&language=en`
       );
 
-      const locations = response.data.map(item => {
-        const shortName = getShortLocationName(item.display_name);
-        return {
-          display_name: item.display_name,
-          short_name: shortName,
-          lat: item.lat,
-          lon: item.lon,
-          type: item.type,
-          class: item.class,
-        };
-      });
+      const data = await response.json();
 
-      // Remove duplicates based on short name
-      const uniqueLocations = locations.filter((location, index, self) =>
-        index === self.findIndex((l) => l.short_name === location.short_name)
-      );
+      if (data.status === "OK" && data.predictions.length > 0) {
+        const cities = data.predictions.map(prediction => {
+          // Extract city name from structured formatting
+          const structured = prediction.structured_formatting;
+          return {
+            place_id: prediction.place_id,
+            name: structured.main_text,
+            description: structured.secondary_text || '',
+            display_name: prediction.description,
+            city: structured.main_text,
+            state: extractStateFromDescription(prediction.description), // Fixed: using function directly
+            type: 'locality'
+          };
+        });
 
-      setSuggestions(uniqueLocations);
+        // Remove duplicates based on city name
+        const uniqueCities = cities.filter((city, index, self) =>
+          index === self.findIndex((c) => c.city === city.city)
+        );
+
+        setSuggestions(uniqueCities);
+      } else if (data.status === "ZERO_RESULTS") {
+        setSuggestions([]);
+      } else {
+        console.error('Google Places API error:', data.status);
+        setSuggestions([]);
+      }
     } catch (error) {
-      console.error('Error searching locations:', error);
+      console.error('Error searching cities:', error);
       setSuggestions([]);
     } finally {
       setLoadingSuggestions(false);
@@ -145,13 +159,59 @@ const LocationSelector = ({
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      searchLocations(searchQuery);
+      searchCities(searchQuery);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchLocations]);
+  }, [searchQuery, searchCities]);
 
-  // Get current location
+  // Get city details from place_id
+  const getCityDetails = async (placeId) => {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?` +
+        `place_id=${placeId}` +
+        `&fields=name,formatted_address,geometry,address_components` +
+        `&key=${GOOGLE_PLACES_API_KEY}` +
+        `&language=en`
+      );
+
+      const data = await response.json();
+
+      if (data.status === "OK" && data.result) {
+        const place = data.result;
+        
+        // Extract city and state from address components
+        let city = '';
+        let state = '';
+        
+        if (place.address_components) {
+          for (const component of place.address_components) {
+            if (component.types.includes('locality')) {
+              city = component.long_name;
+            }
+            if (component.types.includes('administrative_area_level_1')) {
+              state = component.long_name;
+            }
+          }
+        }
+
+        return {
+          name: place.name,
+          city: city || place.name,
+          state: state,
+          formatted_address: place.formatted_address,
+          latitude: place.geometry?.location?.lat,
+          longitude: place.geometry?.location?.lng
+        };
+      }
+    } catch (error) {
+      console.error('Error getting city details:', error);
+    }
+    return null;
+  };
+
+  // Get current location and reverse geocode to get city
   const getCurrentLocation = async () => {
     if (onLocationLoadingChange) {
       onLocationLoadingChange(true);
@@ -170,14 +230,46 @@ const LocationSelector = ({
         timeout: 8000,
       });
 
-      const address = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
+      // Reverse geocode using Google Geocoding API
+      const geocodeResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?` +
+        `latlng=${location.coords.latitude},${location.coords.longitude}` +
+        `&key=${GOOGLE_PLACES_API_KEY}` +
+        `&language=en` +
+        `&result_type=locality`
+      );
 
-      if (address.length > 0) {
-        const locality = getLocationFromAddress(address);
-        handleLocationSelect(locality);
+      const geocodeData = await geocodeResponse.json();
+
+      if (geocodeData.status === "OK" && geocodeData.results.length > 0) {
+        const result = geocodeData.results[0];
+        
+        // Extract city name
+        let cityName = '';
+        for (const component of result.address_components) {
+          if (component.types.includes('locality')) {
+            cityName = component.long_name;
+            break;
+          }
+        }
+
+        if (!cityName) {
+          cityName = result.address_components[0]?.long_name || 'Current Location';
+        }
+
+        const locationData = {
+          name: cityName,
+          city: cityName,
+          state: extractStateFromDescription(result.formatted_address), // Fixed: using function directly
+          formatted_address: result.formatted_address,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          isCurrentLocation: true
+        };
+
+        handleLocationSelect(locationData);
+      } else {
+        alert('Unable to determine city from current location');
       }
     } catch (error) {
       console.error('Error getting current location:', error);
@@ -189,94 +281,90 @@ const LocationSelector = ({
     }
   };
 
-  const handleLocationSelect = async (locationName) => {
-    setSelectedLocation(locationName);
+  const handleLocationSelect = async (locationData) => {
+    // If we only have place_id, fetch complete details
+    let completeLocationData = locationData;
     
-    // Save to recent locations
-    await saveToRecentLocations(locationName);
-    
-    // Save as current location
-    try {
-      await AsyncStorage.setItem('userLocation', locationName);
-    } catch (error) {
-      console.error('Error saving location:', error);
+    if (locationData.place_id && !locationData.latitude) {
+      completeLocationData = await getCityDetails(locationData.place_id);
     }
 
-    // Notify parent component
-    if (onLocationChange) {
-      onLocationChange(locationName);
-    }
+    if (completeLocationData) {
+      setSelectedLocation(completeLocationData.city);
+      setLocationDetails(completeLocationData);
+      
+      // Save to recent locations
+      await saveToRecentLocations(completeLocationData);
+      
+      // Save as current location
+      try {
+        await AsyncStorage.setItem('userLocation', JSON.stringify(completeLocationData));
+      } catch (error) {
+        console.error('Error saving location:', error);
+      }
 
-    setModalVisible(false);
-    setSearchQuery('');
-    setSuggestions([]);
+      // Notify parent component
+      if (onLocationChange) {
+        onLocationChange(completeLocationData);
+      }
+
+      setModalVisible(false);
+      setSearchQuery('');
+      setSuggestions([]);
+    }
   };
 
   const renderSuggestionItem = ({ item }) => (
     <TouchableOpacity
       style={styles.suggestionItem}
-      onPress={() => handleLocationSelect(item.short_name)}
+      onPress={() => handleLocationSelect(item)}
     >
       <Ionicons 
-        name={getLocationIcon(item.class)} 
-        size={20} 
+        name="location-city" 
+        size={22} 
         color="#FF8800" 
       />
       <View style={styles.suggestionTextContainer}>
-        <Text style={styles.suggestionText} numberOfLines={1}>
-          {item.short_name}
+        <Text style={styles.suggestionCity} numberOfLines={1}>
+          {item.city}
         </Text>
-        <Text style={styles.suggestionType}>
-          {formatLocationType(item.type)}
-        </Text>
+        {item.state ? (
+          <Text style={styles.suggestionState} numberOfLines={1}>
+            {item.state}
+          </Text>
+        ) : null}
+        {item.description ? (
+          <Text style={styles.suggestionDescription} numberOfLines={1}>
+            {item.description}
+          </Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
 
-  const renderRecentLocationItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.recentItem}
-      onPress={() => handleLocationSelect(item)}
-    >
-      <Ionicons name="time-outline" size={20} color="#666" />
-      <Text style={styles.recentText} numberOfLines={1}>{item}</Text>
-    </TouchableOpacity>
-  );
-
-  // Helper function to get appropriate icon based on location type
-  const getLocationIcon = (locationClass) => {
-    switch (locationClass) {
-      case 'place':
-        return 'location-outline';
-      case 'boundary':
-        return 'map-outline';
-      case 'highway':
-        return 'car-outline';
-      case 'natural':
-        return 'leaf-outline';
-      case 'building':
-        return 'business-outline';
-      default:
-        return 'location-outline';
-    }
-  };
-
-  // Helper function to format location type for display
-  const formatLocationType = (type) => {
-    if (!type) return 'Location';
+  const renderRecentLocationItem = ({ item }) => {
+    // Handle both string and object types for backward compatibility
+    const locationData = typeof item === 'string' ? 
+      { city: item, state: '' } : item;
     
-    const typeMap = {
-      'city': 'City',
-      'town': 'Town',
-      'village': 'Village',
-      'suburb': 'Suburb',
-      'neighbourhood': 'Neighborhood',
-      'county': 'County',
-      'state': 'State',
-      'country': 'Country',
-    };
-    
-    return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
+    return (
+      <TouchableOpacity
+        style={styles.recentItem}
+        onPress={() => handleLocationSelect(locationData)}
+      >
+        <Ionicons name="time-outline" size={20} color="#666" />
+        <View style={styles.recentTextContainer}>
+          <Text style={styles.recentCity} numberOfLines={1}>
+            {locationData.city}
+          </Text>
+          {locationData.state ? (
+            <Text style={styles.recentState} numberOfLines={1}>
+              {locationData.state}
+            </Text>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -307,7 +395,7 @@ const LocationSelector = ({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Location</Text>
+            <Text style={styles.modalTitle}>Select City</Text>
             <TouchableOpacity
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
@@ -320,7 +408,7 @@ const LocationSelector = ({
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
             <TextInput
-              placeholder="Search city, district, or area..."
+              placeholder="Search for a city..."
               placeholderTextColor="#999"
               style={styles.searchInput}
               value={searchQuery}
@@ -350,38 +438,41 @@ const LocationSelector = ({
           {loadingSuggestions ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#FF8800" />
-              <Text style={styles.loadingText}>Searching locations...</Text>
+              <Text style={styles.loadingText}>Searching cities...</Text>
             </View>
           ) : searchQuery.length > 0 ? (
             <FlatList
               data={suggestions}
-              keyExtractor={(item, index) => `suggestion-${item.short_name}-${index}`}
+              keyExtractor={(item, index) => `city-${item.place_id || item.city}-${index}`}
               renderItem={renderSuggestionItem}
               style={styles.suggestionsList}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="search-outline" size={48} color="#ccc" />
-                  <Text style={styles.emptyText}>No locations found</Text>
-                  <Text style={styles.emptySubText}>Try searching for a city, district, or area</Text>
+                  <Text style={styles.emptyText}>No cities found</Text>
+                  <Text style={styles.emptySubText}>Try searching for a different city name</Text>
                 </View>
               }
             />
           ) : (
             <View style={styles.recentContainer}>
-              <Text style={styles.sectionTitle}>Recent Locations</Text>
+              <Text style={styles.sectionTitle}>Recent Cities</Text>
               {recentLocations.length > 0 ? (
                 <FlatList
                   data={recentLocations}
-                  keyExtractor={(item, index) => `recent-${index}`}
+                  keyExtractor={(item, index) => {
+                    const id = typeof item === 'string' ? item : item.city;
+                    return `recent-${id}-${index}`;
+                  }}
                   renderItem={renderRecentLocationItem}
                   style={styles.recentList}
                 />
               ) : (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="time-outline" size={48} color="#ccc" />
-                  <Text style={styles.emptyText}>No recent locations</Text>
-                  <Text style={styles.emptySubText}>Your recent locations will appear here</Text>
+                  <Text style={styles.emptyText}>No recent cities</Text>
+                  <Text style={styles.emptySubText}>Your recently selected cities will appear here</Text>
                 </View>
               )}
             </View>
@@ -495,15 +586,21 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
-  suggestionText: {
+  suggestionCity: {
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
   },
-  suggestionType: {
-    fontSize: 12,
+  suggestionState: {
+    fontSize: 14,
     color: '#666',
     marginTop: 2,
+  },
+  suggestionDescription: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   recentContainer: {
     flex: 1,
@@ -525,11 +622,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  recentText: {
+  recentTextContainer: {
     flex: 1,
     marginLeft: 12,
+  },
+  recentCity: {
     fontSize: 14,
     color: '#333',
+    fontWeight: '500',
+  },
+  recentState: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   emptyContainer: {
     flex: 1,

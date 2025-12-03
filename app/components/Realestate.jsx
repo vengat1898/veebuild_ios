@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native';
 import logoimg from '../../assets/images/veebuilder.png';
-import { SessionContext } from '../../context/SessionContext'; // Adjust import path
+import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
 
 // Custom Image component with proper error handling
@@ -127,6 +127,18 @@ export default function Realestate() {
     }
   };
 
+  const handleNavigateToDetails = (item) => {
+    router.push({
+      pathname: '/components/Landdetails',
+      params: { 
+        id: item.id, 
+        cat_id, 
+        customer_id, 
+        vendor_id: item.vendor_id 
+      }
+    });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -175,19 +187,20 @@ export default function Realestate() {
   const renderCard = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardContent}>
-        <RealEstateImage
-          imageUrl={item.firstImage}
-          style={styles.propertyImage}
-        />
+        {/* Touchable Image */}
+        <TouchableOpacity 
+          onPress={() => handleNavigateToDetails(item)}
+          activeOpacity={0.7}
+        >
+          <RealEstateImage
+            imageUrl={item.firstImage}
+            style={styles.propertyImage}
+          />
+        </TouchableOpacity>
 
         <View style={styles.textGroupContainer}>
           <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: '/components/Landdetails',
-                params: { id: item.id, cat_id, customer_id, vendor_id: item.vendor_id }
-              })
-            }
+            onPress={() => handleNavigateToDetails(item)}
             style={styles.cardTextContainer}
           >
             <View style={styles.textGroup}>
@@ -332,7 +345,7 @@ const styles = StyleSheet.create({
   },
   cardContent: { flexDirection: 'row', marginBottom: 16 },
   propertyImage: {
-    width: '40%',
+    width: 140,
     height: 150,
     borderRadius: 8,
     backgroundColor: "#f0f0f0",
