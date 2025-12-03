@@ -1,6 +1,7 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 
 const { width } = Dimensions.get("window");
+const { height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   safeArea: { 
@@ -441,6 +442,139 @@ centerEnquiryText: {
   marginTop: 5,
   color: "#FF8800",
   fontWeight: "600",
+},
+// Add these styles to your existing Homestyles.js
+
+searchModalSafeArea: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)', // Semi-transparent background
+},
+searchModalContainer: {
+  flex: 1,
+  backgroundColor: '#fff',
+  marginTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight, // Account for status bar on Android
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  overflow: 'hidden',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: -2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 10,
+  elevation: 20,
+},
+searchModalHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 15,
+  paddingVertical: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+  backgroundColor: '#fff',
+  zIndex: 1000,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+  elevation: 3,
+},
+searchBackButton: {
+  padding: 8,
+  marginRight: 10,
+},
+searchInputContainer: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#f5f5f5',
+  borderRadius: 10,
+  paddingHorizontal: 15,
+  height: 44,
+},
+searchModalIcon: {
+  marginRight: 10,
+},
+searchModalInput: {
+  flex: 1,
+  fontSize: 16,
+  color: '#333',
+  paddingVertical: 8,
+},
+searchLoadingContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 50,
+},
+searchLoadingText: {
+  marginTop: 10,
+  fontSize: 14,
+  color: '#666',
+},
+keyboardAvoidingView: {
+  flex: 1,
+},
+searchScrollView: {
+  flex: 1,
+},
+searchScrollContent: {
+  flexGrow: 1,
+},
+sectionListContent: {
+  paddingBottom: 100, // Extra padding at bottom for scroll
+},
+sectionList: {
+  flex: 1,
+},
+sectionHeaderContainer: {
+  backgroundColor: '#f8f8f8',
+  paddingHorizontal: 15,
+  paddingVertical: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+  borderTopWidth: 1,
+  borderTopColor: '#eee',
+},
+sectionHeaderText: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#FF8800',
+},
+searchItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 15,
+  paddingVertical: 14,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+searchItemIcon: {
+  marginRight: 12,
+},
+searchItemText: {
+  flex: 1,
+  fontSize: 16,
+  color: '#333',
+},
+searchItemType: {
+  fontSize: 12,
+  color: '#666',
+  backgroundColor: '#f0f0f0',
+  paddingHorizontal: 8,
+  paddingVertical: 2,
+  borderRadius: 4,
+  marginLeft: 8,
+},
+searchEmptyContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 100,
+  minHeight: height * 0.5,
+},
+searchEmptyText: {
+  marginTop: 16,
+  fontSize: 16,
+  color: '#666',
 },
 });
 

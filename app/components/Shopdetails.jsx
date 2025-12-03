@@ -70,23 +70,14 @@ export default function Shopdetails() {
   const [vendorData, setVendorData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
-    // Function to get last 4 digits of mobile number
-
+  // Function to get last 4 digits of mobile number
   const getLastFourDigits = (mobile) => {
-
     if (!mobile) return 'Not specified';
-
     
-
     const mobileString = mobile.toString();
-
     if (mobileString.length <= 4) return mobileString;
-
     
-
     return `XXXXX${mobileString.slice(-4)}`;
-
   };
 
   useEffect(() => {
@@ -232,22 +223,19 @@ export default function Shopdetails() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Shop Card */}
+        {/* Shop Card with Full Width Image */}
         <View style={styles.shopCard}>
-          <View style={styles.logoContainer}>
+          {/* Full Width Image with Padding */}
+          <View style={styles.imageWrapper}>
             <VendorImage
               imageUrl={vendorData.shop_image}
-              style={styles.logo}
+              style={styles.fullWidthImage}
             />
-            <View style={styles.logoOverlay} />
           </View>
 
+          {/* Shop Info Below Image */}
           <View style={styles.shopInfo}>
             <Text style={styles.nameText}>{vendorData.name}</Text>
-            {/* <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={16} color="#FFD700" />
-              <Text style={styles.ratingText}>4.8</Text>
-            </View> */}
           </View>
 
           <View style={styles.detailsGrid}>
@@ -473,58 +461,35 @@ const createStyles = (windowWidth, windowHeight) =>
       backgroundColor: 'white',
       margin: 16,
       borderRadius: 20,
-      padding: 20,
+      padding: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 5,
     },
-    logoContainer: {
-      position: 'relative',
-      alignItems: 'center',
-      marginBottom: 16,
-    },
-    logo: {
-      width: windowWidth * 0.3,
-      height: windowWidth * 0.3,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: '#8B4513',
-    },
-    logoOverlay: {
-      position: 'absolute',
-      bottom: -5,
+    imageWrapper: {
       width: '100%',
-      height: 1,
-      backgroundColor: 'rgba(139, 69, 19, 0.1)',
-      borderRadius: 5,
+      marginBottom: 16,
+      borderRadius: 8,
+      overflow: 'hidden',
+      backgroundColor: '#FAF0E6',
+      borderColor:'#bd8348ff',
+      borderWidth:0.4
+    },
+    fullWidthImage: {
+      width: '100%',
+      height: 200,
+      resizeMode: 'cover',
     },
     shopInfo: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
       marginBottom: 16,
+      paddingHorizontal: 4,
     },
     nameText: {
-      fontSize: 14,
+      fontSize: 20,
       fontWeight: 'bold',
       color: '#333',
-      flex: 1,
-    },
-    ratingBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FFF8E1',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    ratingText: {
-      marginLeft: 4,
-      fontSize: 14,
-      fontWeight: 'bold',
-      color: '#8B4513',
     },
     detailsGrid: {
       flexDirection: 'row',
@@ -723,4 +688,4 @@ const createStyles = (windowWidth, windowHeight) =>
       fontSize: 16,
       fontWeight: 'bold',
     },
-  });
+  })

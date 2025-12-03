@@ -338,51 +338,53 @@ export default function HirepeopleDetails() {
     const isCallTracking = trackingCalls[`${item.id}_1`];
     const isWhatsAppTracking = trackingCalls[`${item.id}_2`];
 
+    const navigateToDetails = () => {
+      console.log('=================== NAVIGATION TO DETAILS ===================');
+      console.log('Target Route: /components/HirepeopleDetails1');
+      console.log('Navigation Data:', JSON.stringify(item, null, 2));
+      console.log('==============================================================');
+      console.log('');
+      
+      router.push({
+        pathname: '/components/HirepeopleDetails1',
+        params: { data: JSON.stringify(item) },
+      });
+    };
+
     return (
       <LinearGradient
         colors={['#FDF6EC', '#F8F0E5', '#F4E8D8']}
         style={styles.card}
       >
-        <View style={styles.cardContent}>
+        {/* Make the entire content area clickable */}
+        <TouchableOpacity
+          onPress={navigateToDetails}
+          style={styles.cardContent}
+          activeOpacity={0.7}
+        >
           <ProfessionalImage
             imageUrl={item.aatharimage}
             style={styles.logo}
           />
 
           <View style={styles.textGroupContainer}>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('=================== NAVIGATION TO DETAILS ===================');
-                console.log('Target Route: /components/HirepeopleDetails1');
-                console.log('Navigation Data:', JSON.stringify(item, null, 2));
-                console.log('==============================================================');
-                console.log('');
-                
-                router.push({
-                  pathname: '/components/HirepeopleDetails1',
-                  params: { data: JSON.stringify(item) },
-                });
-              }}
-              style={styles.cardTextContainer}
-            >
-              <View style={styles.textGroup}>
-                <Text style={styles.title}>{item.name}</Text>
-                <View style={styles.detailRow}>
-                  <Ionicons name="location-outline" size={14} color="#8B7355" />
-                  <Text style={styles.subText}>{item.address}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="briefcase-outline" size={14} color="#8B7355" />
-                  <Text style={styles.subText}>{item.yearofexp} years of experience</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="chatbubble-outline" size={14} color="#8B7355" />
-                  <Text style={styles.subText}>{item.enquery} enquiry answers</Text>
-                </View>
+            <View style={styles.textGroup}>
+              <Text style={styles.title}>{item.name}</Text>
+              <View style={styles.detailRow}>
+                <Ionicons name="location-outline" size={14} color="#8B7355" />
+                <Text style={styles.subText}>{item.address}</Text>
               </View>
-            </TouchableOpacity>
+              <View style={styles.detailRow}>
+                <Ionicons name="briefcase-outline" size={14} color="#8B7355" />
+                <Text style={styles.subText}>{item.yearofexp} years of experience</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Ionicons name="chatbubble-outline" size={14} color="#8B7355" />
+                <Text style={styles.subText}>{item.enquery} enquiry answers</Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.buttonRow}>
           <TouchableOpacity 
@@ -525,7 +527,7 @@ export default function HirepeopleDetails() {
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#8B7355" style={{ marginRight: 8 }} />
         <TextInput
-          placeholder="Search by name or city"
+          placeholder="Search by name"
           value={searchText}
           onChangeText={(text) => {
             console.log('=================== SEARCH INPUT CHANGE ===================');

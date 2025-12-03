@@ -1,13 +1,14 @@
 import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   SafeAreaView,
@@ -48,6 +49,11 @@ export default function Register() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  // Refs for input focus
+  const nameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const scrollViewRef = useRef(null);
+
   // Get mobile and userId from params or session
   const mobile = params.mobile || session?.mobile || '';
   const userId = params.userId || session?.id || '';
@@ -68,6 +74,16 @@ export default function Register() {
       hideSubscription.remove();
     };
   }, []);
+
+  // ✅ Auto-scroll when keyboard appears
+  useEffect(() => {
+    if (isKeyboardVisible && emailInputRef.current) {
+      // Scroll to make email input visible
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 250, animated: true });
+      }, 100);
+    }
+  }, [isKeyboardVisible]);
 
   // ✅ Validation functions
   const validateName = (name) => {
@@ -107,7 +123,7 @@ export default function Register() {
     return '';
   };
 
-  // ✅ Real-time validation handlers
+  // ✅ Real-time validation handlers with focus management
   const handleNameChange = (text) => {
     setName(text);
     if (errors.name) {
@@ -120,6 +136,11 @@ export default function Register() {
     if (errors.email) {
       setErrors(prev => ({ ...prev, email: validateEmail(text) }));
     }
+  };
+
+  // ✅ Focus next input
+  const focusEmailInput = () => {
+    emailInputRef.current?.focus();
   };
 
   // ✅ Open address modal (iOS style)
@@ -555,148 +576,174 @@ export default function Register() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <ScrollView 
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        bounces={false}
+      {/* ✅ MAIN FORM with KeyboardAvoidingView */}
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={22} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Complete Registration</Text>
-          <View style={styles.headerRight} />
-        </View>
-
-        <View style={styles.content}>
-          {/* Logo - Increased Size */}
-          <View style={styles.logoContainer}>
-            <Image source={logoimg} style={styles.logo} resizeMode="contain" />
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.container}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isKeyboardVisible && { paddingBottom: 100 }
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={22} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Complete Registration</Text>
+            <View style={styles.headerRight} />
           </View>
 
-          {/* Name Input */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <View style={[styles.inputContainer, errors.name && styles.inputError]}>
-              <FontAwesome name="user" size={18} color="#8E8E93" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                placeholderTextColor="#8E8E93"
-                value={name}
-                onChangeText={handleNameChange}
-                autoCapitalize="words"
-                maxLength={50}
-                returnKeyType="next"
-              />
+          <View style={styles.content}>
+            {/* Logo - Increased Size */}
+            <View style={styles.logoContainer}>
+              <Image source={logoimg} style={styles.logo} resizeMode="contain" />
             </View>
-            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-          </View>
 
-          {/* Mobile Input */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Mobile Number</Text>
-            <View style={[styles.inputContainer, styles.disabledInput]}>
-              <FontAwesome name="phone" size={18} color="#8E8E93" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={mobile}
-                editable={false}
-                placeholderTextColor="#8E8E93"
-              />
+            {/* Name Input */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <View style={[styles.inputContainer, errors.name && styles.inputError]}>
+                <FontAwesome name="user" size={18} color="#8E8E93" style={styles.inputIcon} />
+                <TextInput
+                  ref={nameInputRef}
+                  style={styles.input}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#8E8E93"
+                  value={name}
+                  onChangeText={handleNameChange}
+                  autoCapitalize="words"
+                  maxLength={50}
+                  returnKeyType="next"
+                  onSubmitEditing={focusEmailInput}
+                  blurOnSubmit={false}
+                />
+              </View>
+              {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
             </View>
-          </View>
 
-          {/* Email Input */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Email Address</Text>
-            <View style={[styles.inputContainer, errors.email && styles.inputError]}>
-              <FontAwesome name="envelope" size={18} color="#8E8E93" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="example@email.com"
-                placeholderTextColor="#8E8E93"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={handleEmailChange}
-                maxLength={100}
-                returnKeyType="next"
-              />
+            {/* Mobile Input */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Mobile Number</Text>
+              <View style={[styles.inputContainer, styles.disabledInput]}>
+                <FontAwesome name="phone" size={18} color="#8E8E93" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={mobile}
+                  editable={false}
+                  placeholderTextColor="#8E8E93"
+                />
+              </View>
             </View>
-            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-          </View>
 
-          {/* Address Input - iOS Style */}
-          <View style={styles.inputSection}>
-            <View style={styles.addressLabelRow}>
-              <Text style={styles.inputLabel}>Address</Text>
-              <TouchableOpacity
-                onPress={openAddressModal}
-                style={styles.editAddressButton}
-              >
-                <Text style={styles.editAddressText}>
-                  {address ? 'Edit' : 'Add Address'}
-                </Text>
-              </TouchableOpacity>
+            {/* Email Input - with auto scroll */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+                <FontAwesome name="envelope" size={18} color="#8E8E93" style={styles.inputIcon} />
+                <TextInput
+                  ref={emailInputRef}
+                  style={styles.input}
+                  placeholder="example@email.com"
+                  placeholderTextColor="#8E8E93"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  maxLength={100}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    // Scroll to address section when done with email
+                    scrollViewRef.current?.scrollTo({ y: 350, animated: true });
+                    Keyboard.dismiss();
+                  }}
+                  onFocus={() => {
+                    // Auto-scroll when email input is focused
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollTo({ y: 250, animated: true });
+                    }, 100);
+                  }}
+                />
+              </View>
+              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
             </View>
-            
-            {address ? (
-              <TouchableOpacity 
-                style={styles.addressDisplay}
-                onPress={openAddressModal}
-              >
-                <View style={styles.addressIconContainer}>
-                  <Ionicons name="location-sharp" size={20} color="#007AFF" />
-                </View>
-                <View style={styles.addressTextContainer}>
-                  <Text style={styles.addressMainText} numberOfLines={1}>
-                    {selectedLocation?.main_text || address.split(',')[0]}
+
+            {/* Address Input - iOS Style */}
+            <View style={styles.inputSection}>
+              <View style={styles.addressLabelRow}>
+                <Text style={styles.inputLabel}>Address</Text>
+                <TouchableOpacity
+                  onPress={openAddressModal}
+                  style={styles.editAddressButton}
+                >
+                  <Text style={styles.editAddressText}>
+                    {address ? 'Edit' : 'Add Address'}
                   </Text>
-                  <Text style={styles.addressSubText} numberOfLines={2}>
-                    {selectedLocation?.secondary_text || address.substring(address.split(',')[0].length + 2)}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={styles.addAddressButton}
-                onPress={openAddressModal}
-              >
-                <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
-                <Text style={styles.addAddressText}>Add your address</Text>
-              </TouchableOpacity>
-            )}
-            {errors.address ? <Text style={styles.errorText}>{errors.address}</Text> : null}
+                </TouchableOpacity>
+              </View>
+              
+              {address ? (
+                <TouchableOpacity 
+                  style={styles.addressDisplay}
+                  onPress={openAddressModal}
+                >
+                  <View style={styles.addressIconContainer}>
+                    <Ionicons name="location-sharp" size={20} color="#007AFF" />
+                  </View>
+                  <View style={styles.addressTextContainer}>
+                    <Text style={styles.addressMainText} numberOfLines={1}>
+                      {selectedLocation?.main_text || address.split(',')[0]}
+                    </Text>
+                    <Text style={styles.addressSubText} numberOfLines={2}>
+                      {selectedLocation?.secondary_text || address.substring(address.split(',')[0].length + 2)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.addAddressButton}
+                  onPress={openAddressModal}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+                  <Text style={styles.addAddressText}>Add your address</Text>
+                </TouchableOpacity>
+              )}
+              {errors.address ? <Text style={styles.errorText}>{errors.address}</Text> : null}
+            </View>
+
+            {/* Register Button */}
+            <TouchableOpacity 
+              style={[
+                styles.registerButton, 
+                (!isFormValid || isLoading) && styles.registerButtonDisabled
+              ]} 
+              onPress={handleRegister}
+              disabled={!isFormValid || isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.registerButtonText}>Complete Registration</Text>
+              )}
+            </TouchableOpacity>
           </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-          {/* Register Button */}
-          <TouchableOpacity 
-            style={[
-              styles.registerButton, 
-              (!isFormValid || isLoading) && styles.registerButtonDisabled
-            ]} 
-            onPress={handleRegister}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.registerButtonText}>Complete Registration</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* iOS Style Address Modal - FIXED */}
+      {/* ✅ FIXED: iOS Style Address Modal with Keyboard Handling */}
       <Modal
         animationType="slide"
         transparent={false}
@@ -767,16 +814,20 @@ export default function Register() {
             </TouchableOpacity>
           </View>
 
-          {/* Suggestions List - SCROLLABLE AREA */}
-          <View style={[
-            styles.suggestionsWrapper,
-            isKeyboardVisible && { height: height - keyboardHeight - 180 }
-          ]}>
+          {/* ✅ FIXED: Dynamic ScrollView that adjusts for keyboard */}
+          <KeyboardAvoidingView 
+            style={styles.modalKeyboardAvoidView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
             <ScrollView 
-              style={styles.suggestionsContainer}
-              showsVerticalScrollIndicator={true}
+              style={styles.suggestionsScrollView}
+              contentContainerStyle={[
+                styles.suggestionsContent,
+                { paddingBottom: isKeyboardVisible ? 20 : 40 }
+              ]}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.suggestionsContent}
+              showsVerticalScrollIndicator={true}
             >
               {searching ? (
                 <View style={styles.loadingContainer}>
@@ -808,7 +859,7 @@ export default function Register() {
                 </View>
               )}
             </ScrollView>
-          </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -820,12 +871,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  
+  // ✅ Keyboard avoiding for main form
+  keyboardAvoidContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 30,
   },
   
   // Header
@@ -1094,26 +1154,28 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   
-  // Suggestions Wrapper - Dynamic height based on keyboard
-  suggestionsWrapper: {
+  // ✅ FIXED: Modal Keyboard Avoiding View
+  modalKeyboardAvoidView: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
   
-  // Suggestions Container
-  suggestionsContainer: {
+  // ✅ FIXED: Suggestions ScrollView
+  suggestionsScrollView: {
     flex: 1,
   },
   
+  // ✅ FIXED: Suggestions Content Container
   suggestionsContent: {
     flexGrow: 1,
+    paddingBottom: 40,
   },
   
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
+    minHeight: 200,
   },
   loadingText: {
     fontSize: 14,
@@ -1172,8 +1234,10 @@ const styles = StyleSheet.create({
   // Empty States
   noResultsContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 60,
     paddingHorizontal: 40,
+    minHeight: 300,
   },
   noResultsTitle: {
     fontSize: 15,
@@ -1192,8 +1256,10 @@ const styles = StyleSheet.create({
   },
   emptyStateContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 80,
     paddingHorizontal: 40,
+    minHeight: 400,
   },
   emptyStateTitle: {
     fontSize: 15,
