@@ -122,7 +122,8 @@ export default function Shop() {
         country: item.country,
         rattings: item.rattings,
         enquery: item.enquery,
-        distance: item.distance
+        distance: item.distance,
+        dealer: item.dealer // Pass dealer info to details page
       }
     });
   };
@@ -793,6 +794,11 @@ export default function Shop() {
     console.log('Item data:', JSON.stringify(item, null, 2));
     console.log('=============================================================');
     
+    // Determine if dealer or vendor
+    const isDealer = item.dealer === "1" || item.dealer === 1;
+    const businessType = isDealer ? "Dealer" : "Vendor";
+    const tagColor = isDealer ? "#2E7D32" : "#1976D2"; // Green for dealer, Blue for vendor
+    
     return (
       <View style={styles.card}>
         <View style={styles.cardContent}>
@@ -807,7 +813,12 @@ export default function Shop() {
               style={styles.cardTextContainer}
             >
               <View style={styles.textGroup}>
-                <Text style={styles.title}>{item.name}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{item.name}</Text>
+                  <View style={[styles.businessTag, { backgroundColor: tagColor }]}>
+                    <Text style={styles.businessTagText}>{businessType}</Text>
+                  </View>
+                </View>
                 <Text style={styles.subText}>{item.distance} km away</Text>
                 <Text style={styles.subText}>{item.city}</Text>
                 <Text style={styles.subText}>{item.yera_of_exp} years of experience</Text>
@@ -1389,11 +1400,34 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 6,
   },
+  // Title row with tag
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   title: {
     fontWeight: 'bold',
     fontSize: 15,
     color: '#8B4513',
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
+  },
+  // Business type tag
+  businessTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessTagText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   subText: {
     fontSize: 13,
