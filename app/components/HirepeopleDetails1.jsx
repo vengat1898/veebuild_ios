@@ -444,21 +444,21 @@ export default function HirepeopleDetails1() {
             {activeTab === 'Quick Info' && (
               <View style={styles.infoGrid}>
                 <View style={styles.infoItem}>
-                  <Ionicons name="call" size={20} color="#8B4513" />
+                  <Ionicons name="call" size={20} color="#8B4513" style={{ paddingRight: 10 }}  />
                   <View>
                     <Text style={styles.infoLabel}>Mobile</Text>
                     <Text style={styles.infoValue}> {getLastFourDigits(person.mobile)}</Text>
                   </View>
                 </View>
                 <View style={styles.infoItem}>
-                  <Ionicons name="briefcase" size={20} color="#8B4513" />
+                  <Ionicons name="briefcase" size={20} color="#8B4513" style={{ paddingRight: 10 }} />
                   <View>
                     <Text style={styles.infoLabel}>Profession</Text>
                     <Text style={styles.infoValue}>{person.occupation || 'Not specified'}</Text>
                   </View>
                 </View>
                 <View style={styles.infoItem}>
-                  <Ionicons name="trophy" size={20} color="#8B4513" />
+                  <Ionicons name="trophy" size={20} color="#8B4513" style={{ paddingRight: 10 }}  />
                   <View>
                     <Text style={styles.infoLabel}>Experience</Text>
                     <Text style={styles.infoValue}>{person.yearofexp || '0'} years</Text>
