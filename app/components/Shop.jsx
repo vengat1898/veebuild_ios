@@ -86,6 +86,8 @@
 //   const [error, setError] = useState(null);
 //   const [selectedBrands, setSelectedBrands] = useState([]);
 //   const [searchQuery, setSearchQuery] = useState('');
+//   const [businessTypeFilter, setBusinessTypeFilter] = useState('all'); // 'all', 'dealer', 'vendor'
+//   const [businessTypeDropdownVisible, setBusinessTypeDropdownVisible] = useState(false);
 //   const { cat_id, customer_id: paramCustomerId } = params;
   
 //   // Check if user is a guest (no proper mobile number)
@@ -300,12 +302,32 @@
 //   // Function to filter vendors by search query
 //   const filterVendorsBySearch = (query) => {
 //     if (!query.trim()) {
-//       // If search is empty, show all vendors
-//       setFilteredVendors(vendors);
+//       // If search is empty, apply only business type filter
+//       if (businessTypeFilter === 'all') {
+//         setFilteredVendors(vendors);
+//       } else {
+//         const isDealerFilter = businessTypeFilter === 'dealer';
+//         const filtered = vendors.filter(vendor => {
+//           const isDealer = vendor.dealer === "1" || vendor.dealer === 1;
+//           return isDealerFilter ? isDealer : !isDealer;
+//         });
+//         setFilteredVendors(filtered);
+//       }
 //       return;
 //     }
     
-//     const filtered = vendors.filter(vendor => {
+//     // First filter by business type if needed
+//     let initialFiltered = vendors;
+//     if (businessTypeFilter !== 'all') {
+//       const isDealerFilter = businessTypeFilter === 'dealer';
+//       initialFiltered = vendors.filter(vendor => {
+//         const isDealer = vendor.dealer === "1" || vendor.dealer === 1;
+//         return isDealerFilter ? isDealer : !isDealer;
+//       });
+//     }
+    
+//     // Then filter by search query
+//     const filtered = initialFiltered.filter(vendor => {
 //       const vendorName = vendor.name || '';
 //       return vendorName.toLowerCase().includes(query.toLowerCase());
 //     });
@@ -329,7 +351,42 @@
 //   // Clear search
 //   const clearSearch = () => {
 //     setSearchQuery('');
-//     setFilteredVendors(vendors);
+//     filterVendorsBySearch('');
+//   };
+
+//   // Function to apply business type filter
+//   const applyBusinessTypeFilter = (type) => {
+//     console.log('=============================================================');
+//     console.log('APPLYING BUSINESS TYPE FILTER');
+//     console.log('Selected type:', type);
+//     console.log('=============================================================');
+    
+//     setBusinessTypeFilter(type);
+    
+//     // Filter vendors based on business type
+//     if (type === 'all') {
+//       // If no business type filter, just apply other filters and search
+//       if (searchQuery.trim()) {
+//         filterVendorsBySearch(searchQuery);
+//       } else {
+//         setFilteredVendors(vendors);
+//       }
+//     } else {
+//       const isDealerFilter = type === 'dealer';
+//       const filtered = vendors.filter(vendor => {
+//         const isDealer = vendor.dealer === "1" || vendor.dealer === 1;
+//         return isDealerFilter ? isDealer : !isDealer;
+//       });
+      
+//       // Apply search filter if any
+//       const searchFiltered = searchQuery.trim() 
+//         ? filtered.filter(vendor => 
+//             (vendor.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+//           )
+//         : filtered;
+      
+//       setFilteredVendors(searchFiltered);
+//     }
 //   };
 
 //   // Clear all filters and reset to original vendor list
@@ -340,9 +397,11 @@
 
 //     setLoading(true);
     
-//     // Clear selected types and brands
+//     // Clear all selected filters
 //     setSelectedTypes([]);
 //     setSelectedBrands([]);
+//     setBusinessTypeFilter('all');
+//     setBusinessTypeDropdownVisible(false);
     
 //     try {
 //       // Fetch all vendors again (no filters)
@@ -356,7 +415,6 @@
 //       const vendorsResponse = await api.get(vendorUrl);
       
 //       if (vendorsResponse.data.result === 'Success') {
-//         // Remove alphabetical sorting - use vendors as they come from API
 //         setVendors(vendorsResponse.data.storeList);
 //         setFilteredVendors(vendorsResponse.data.storeList);
         
@@ -394,6 +452,7 @@
 //         }
 
 //         setLoading(true);
+//         setBusinessTypeFilter('all');
         
 //         const vendorUrl = `vendor_list.php?category_id=${cat_id}&customer_id=${customer_id}`;
 //         console.log('=============================================================');
@@ -410,7 +469,6 @@
 //         console.log('=============================================================');
 
 //         if (vendorsResponse.data.result === 'Success') {
-//           // Remove alphabetical sorting - use vendors as they come from API
 //           setVendors(vendorsResponse.data.storeList);
 //           setFilteredVendors(vendorsResponse.data.storeList);
 //           console.log('=============================================================');
@@ -609,13 +667,28 @@
 //       console.log('=============================================================');
 
 //       if (response.data.result === 'Success' && response.data.storeList) {
-//         // Remove alphabetical sorting - use vendors as they come from API
-//         setVendors(response.data.storeList);
-//         // Apply current search filter if any
-//         if (searchQuery.trim()) {
-//           filterVendorsBySearch(searchQuery);
+//         // Apply business type filter if needed
+//         if (businessTypeFilter !== 'all') {
+//           const isDealerFilter = businessTypeFilter === 'dealer';
+//           const businessFiltered = response.data.storeList.filter(vendor => {
+//             const isDealer = vendor.dealer === "1" || vendor.dealer === 1;
+//             return isDealerFilter ? isDealer : !isDealer;
+//           });
+//           setVendors(businessFiltered);
+//           // Apply current search filter if any
+//           if (searchQuery.trim()) {
+//             filterVendorsBySearch(searchQuery);
+//           } else {
+//             setFilteredVendors(businessFiltered);
+//           }
 //         } else {
-//           setFilteredVendors(response.data.storeList);
+//           setVendors(response.data.storeList);
+//           // Apply current search filter if any
+//           if (searchQuery.trim()) {
+//             filterVendorsBySearch(searchQuery);
+//           } else {
+//             setFilteredVendors(response.data.storeList);
+//           }
 //         }
         
 //         console.log('=============================================================');
@@ -688,8 +761,6 @@
 //     try {
 //       setBrandModalVisible(false);
       
-//       // Instead of fetching from a different API, we'll just apply the brand filter
-//       // using the same logic as type filter since they work together
 //       console.log('=============================================================');
 //       console.log('APPLYING BRAND FILTER');
 //       console.log('Selected brands:', selectedBrands);
@@ -722,13 +793,28 @@
 //       console.log('=============================================================');
 
 //       if (response.data.result === 'Success' && response.data.storeList) {
-//         // Remove alphabetical sorting - use vendors as they come from API
-//         setVendors(response.data.storeList);
-//         // Apply current search filter if any
-//         if (searchQuery.trim()) {
-//           filterVendorsBySearch(searchQuery);
+//         // Apply business type filter if needed
+//         if (businessTypeFilter !== 'all') {
+//           const isDealerFilter = businessTypeFilter === 'dealer';
+//           const businessFiltered = response.data.storeList.filter(vendor => {
+//             const isDealer = vendor.dealer === "1" || vendor.dealer === 1;
+//             return isDealerFilter ? isDealer : !isDealer;
+//           });
+//           setVendors(businessFiltered);
+//           // Apply current search filter if any
+//           if (searchQuery.trim()) {
+//             filterVendorsBySearch(searchQuery);
+//           } else {
+//             setFilteredVendors(businessFiltered);
+//           }
 //         } else {
-//           setFilteredVendors(response.data.storeList);
+//           setVendors(response.data.storeList);
+//           // Apply current search filter if any
+//           if (searchQuery.trim()) {
+//             filterVendorsBySearch(searchQuery);
+//           } else {
+//             setFilteredVendors(response.data.storeList);
+//           }
 //         }
         
 //         console.log('=============================================================');
@@ -941,8 +1027,126 @@
 //           <Ionicons name="chevron-down" size={16} color={selectedTypes.length === 0 ? '#CCCCCC' : '#8B4513'} />
 //         </TouchableOpacity>
 
+//         {/* Business Type Filter Button with dropdown selection */}
+//         <View style={styles.businessTypeContainer}>
+//           <TouchableOpacity 
+//             onPress={() => {
+//               // Toggle business type dropdown
+//               setBusinessTypeDropdownVisible(!businessTypeDropdownVisible);
+//             }} 
+//             style={[
+//               styles.filterButton,
+//               businessTypeFilter !== 'all' && styles.activeFilterButton
+//             ]}
+//           >
+//             <Ionicons 
+//               name="business" 
+//               size={18} 
+//               color={businessTypeFilter !== 'all' ? 'white' : '#8B4513'} 
+//             />
+//             <Text style={[
+//               styles.filterButtonText,
+//               businessTypeFilter !== 'all' && styles.activeFilterButtonText
+//             ]}>
+//               {businessTypeFilter === 'all' ? 'Business' : 
+//                businessTypeFilter === 'dealer' ? 'Dealers' : 'Vendors'}
+//             </Text>
+//             <Ionicons 
+//               name={businessTypeDropdownVisible ? "chevron-up" : "chevron-down"} 
+//               size={16} 
+//               color={businessTypeFilter !== 'all' ? 'white' : '#8B4513'} 
+//             />
+//           </TouchableOpacity>
+
+//           {/* Business Type Dropdown */}
+//           {businessTypeDropdownVisible && (
+//             <View style={styles.businessTypeDropdown}>
+//               <TouchableOpacity 
+//                 style={[
+//                   styles.businessTypeOption,
+//                   businessTypeFilter === 'all' && styles.selectedBusinessTypeOption
+//                 ]}
+//                 onPress={() => {
+//                   applyBusinessTypeFilter('all');
+//                   setBusinessTypeDropdownVisible(false);
+//                 }}
+//               >
+//                 <View style={[
+//                   styles.radioCircle,
+//                   businessTypeFilter === 'all' && styles.selectedRadioCircle
+//                 ]}>
+//                   {businessTypeFilter === 'all' && <View style={styles.radioInnerCircle} />}
+//                 </View>
+//                 <Text style={[
+//                   styles.businessTypeOptionText,
+//                   businessTypeFilter === 'all' && styles.selectedBusinessTypeOptionText
+//                 ]}>
+//                   All
+//                 </Text>
+//                 <Text style={styles.businessTypeCount}>
+//                   ({vendors.length})
+//                 </Text>
+//               </TouchableOpacity>
+
+//               <TouchableOpacity 
+//                 style={[
+//                   styles.businessTypeOption,
+//                   businessTypeFilter === 'dealer' && styles.selectedBusinessTypeOption
+//                 ]}
+//                 onPress={() => {
+//                   applyBusinessTypeFilter('dealer');
+//                   setBusinessTypeDropdownVisible(false);
+//                 }}
+//               >
+//                 <View style={[
+//                   styles.radioCircle,
+//                   businessTypeFilter === 'dealer' && styles.selectedRadioCircle
+//                 ]}>
+//                   {businessTypeFilter === 'dealer' && <View style={styles.radioInnerCircle} />}
+//                 </View>
+//                 <Text style={[
+//                   styles.businessTypeOptionText,
+//                   businessTypeFilter === 'dealer' && styles.selectedBusinessTypeOptionText
+//                 ]}>
+//                   Dealers Only
+//                 </Text>
+//                 <Text style={styles.businessTypeCount}>
+//                   ({vendors.filter(v => v.dealer === "1" || v.dealer === 1).length})
+//                 </Text>
+//               </TouchableOpacity>
+
+//               <TouchableOpacity 
+//                 style={[
+//                   styles.businessTypeOption,
+//                   businessTypeFilter === 'vendor' && styles.selectedBusinessTypeOption
+//                 ]}
+//                 onPress={() => {
+//                   applyBusinessTypeFilter('vendor');
+//                   setBusinessTypeDropdownVisible(false);
+//                 }}
+//               >
+//                 <View style={[
+//                   styles.radioCircle,
+//                   businessTypeFilter === 'vendor' && styles.selectedRadioCircle
+//                 ]}>
+//                   {businessTypeFilter === 'vendor' && <View style={styles.radioInnerCircle} />}
+//                 </View>
+//                 <Text style={[
+//                   styles.businessTypeOptionText,
+//                   businessTypeFilter === 'vendor' && styles.selectedBusinessTypeOptionText
+//                 ]}>
+//                   Vendors Only
+//                 </Text>
+//                 <Text style={styles.businessTypeCount}>
+//                   ({vendors.filter(v => !(v.dealer === "1" || v.dealer === 1)).length})
+//                 </Text>
+//               </TouchableOpacity>
+//             </View>
+//           )}
+//         </View>
+
 //         {/* Reset filters button */}
-//         {/* {(selectedTypes.length > 0 || selectedBrands.length > 0) && (
+//         {(selectedTypes.length > 0 || selectedBrands.length > 0 || businessTypeFilter !== 'all') && (
 //           <TouchableOpacity 
 //             onPress={clearAllFilters} 
 //             style={[styles.filterButton, styles.resetButton]}
@@ -952,7 +1156,7 @@
 //               Reset
 //             </Text>
 //           </TouchableOpacity>
-//         )} */}
+//         )}
 //       </View>
 
 //       {/* Vendors List */}
@@ -986,7 +1190,7 @@
 //             <>
 //               <Text style={styles.noResultsText}>No shops found</Text>
 //               <Text style={styles.noResultsSubText}>Try adjusting your filters</Text>
-//               {(selectedTypes.length > 0 || selectedBrands.length > 0) && (
+//               {(selectedTypes.length > 0 || selectedBrands.length > 0 || businessTypeFilter !== 'all') && (
 //                 <TouchableOpacity onPress={clearAllFilters} style={styles.clearSearchButton}>
 //                   <Text style={styles.clearSearchButtonText}>Clear Filters</Text>
 //                 </TouchableOpacity>
@@ -1300,6 +1504,7 @@
 //     marginBottom: 15,
 //     gap: 8,
 //     flexWrap: 'wrap',
+//     position: 'relative',
 //   },
 //   filterButton: {
 //     flexDirection: 'row',
@@ -1328,12 +1533,88 @@
 //   disabledButtonText: {
 //     color: '#CCCCCC',
 //   },
+//   activeFilterButton: {
+//     backgroundColor: '#8B4513',
+//     borderColor: '#8B4513',
+//   },
+//   activeFilterButtonText: {
+//     color: 'white',
+//   },
 //   resetButton: {
 //     backgroundColor: '#FFF5F5',
 //     borderColor: '#8B4513',
 //   },
 //   resetButtonText: {
 //     color: '#8B4513',
+//   },
+
+//   // Business Type Filter Styles
+//   businessTypeContainer: {
+//     position: 'relative',
+//     zIndex: 10,
+//     minWidth: 120,
+//     marginBottom: 4,
+//   },
+//   businessTypeDropdown: {
+//     position: 'absolute',
+//     top: '100%',
+//     left: 0,
+//     right: 0,
+//     backgroundColor: 'white',
+//     borderRadius: 8,
+//     borderWidth: 1,
+//     borderColor: '#D2691E',
+//     marginTop: 4,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.15,
+//     shadowRadius: 4,
+//     elevation: 5,
+//     zIndex: 1000,
+//   },
+//   businessTypeOption: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingVertical: 12,
+//     paddingHorizontal: 16,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#F0F0F0',
+//   },
+//   selectedBusinessTypeOption: {
+//     backgroundColor: '#FFF8F0',
+//   },
+//   radioCircle: {
+//     width: 20,
+//     height: 20,
+//     borderRadius: 10,
+//     borderWidth: 2,
+//     borderColor: '#8B4513',
+//     marginRight: 12,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   selectedRadioCircle: {
+//     borderColor: '#8B4513',
+//   },
+//   radioInnerCircle: {
+//     width: 10,
+//     height: 10,
+//     borderRadius: 5,
+//     backgroundColor: '#8B4513',
+//   },
+//   businessTypeOptionText: {
+//     fontSize: 14,
+//     color: '#8B4513',
+//     flex: 1,
+//   },
+//   selectedBusinessTypeOptionText: {
+//     fontWeight: '600',
+//     color: '#8B4513',
+//   },
+//   businessTypeCount: {
+//     fontSize: 12,
+//     color: '#A0522D',
+//     fontStyle: 'italic',
 //   },
 
 //   // List Container
@@ -1915,51 +2196,248 @@ export default function Shop() {
     );
   }
 
+  // Handle call with proper error handling
   const handleCallPress = async (mobileNumber, vendorId) => {
     console.log('=== CALL FUNCTION ===');
-    console.log('Attempting to call:', mobileNumber);
+    console.log('Original mobile number:', mobileNumber);
     console.log('Vendor ID:', vendorId);
     
-    if (mobileNumber) {
-      // Track call enquiry first
-      await trackEnquiry(1, vendorId); // enquiry_type=1 for call
-      
-      // Then initiate the call
-      Linking.openURL(`tel:${mobileNumber}`)
-        .then(() => console.log('Call initiated successfully'))
-        .catch(err => {
-          console.error('Error initiating call:', err);
-          Alert.alert('Error', 'Could not initiate call');
-        });
-    } else {
+    // Check if number is valid
+    if (!mobileNumber || mobileNumber.trim() === '') {
       console.log('No mobile number available');
-      Alert.alert('Error', 'Phone number not available');
+      Alert.alert(
+        'Phone Not Available',
+        'This vendor has not provided a phone number.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Convert to string and trim
+    let cleanedNumber = mobileNumber.toString().trim();
+    
+    // If number is "null", "undefined", or "N/A", treat as empty
+    if (cleanedNumber.toLowerCase() === 'null' || 
+        cleanedNumber.toLowerCase() === 'undefined' || 
+        cleanedNumber === 'N/A' || 
+        cleanedNumber === '') {
+      console.log('Invalid mobile number format:', cleanedNumber);
+      Alert.alert(
+        'Phone Not Available',
+        'This vendor has not provided a valid phone number.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    console.log('Processing mobile number:', cleanedNumber);
+    
+    // Remove all non-numeric characters
+    cleanedNumber = cleanedNumber.replace(/\D/g, '');
+    
+    console.log('After removing non-numeric:', cleanedNumber);
+    
+    // If empty after cleaning, show error
+    if (!cleanedNumber || cleanedNumber.trim() === '') {
+      Alert.alert(
+        'Invalid Number',
+        'The phone number provided is not valid.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Format for India: if starts with 91 and is 12 digits, remove 91
+    // For local calling, we want 0XXXXXXXXXX format
+    let formattedNumber = cleanedNumber;
+    
+    if (formattedNumber.startsWith('91') && formattedNumber.length === 12) {
+      formattedNumber = '0' + formattedNumber.substring(2);
+    } else if (formattedNumber.length === 10) {
+      formattedNumber = '0' + formattedNumber;
+    }
+    
+    console.log('Formatted for calling:', formattedNumber);
+    
+    // Create tel URL
+    const telUrl = `tel:${formattedNumber}`;
+    console.log('Call URL:', telUrl);
+    
+    // Track enquiry first (optional, don't block if it fails)
+    try {
+      await trackEnquiry(1, vendorId);
+      console.log('Call enquiry tracked successfully');
+    } catch (trackError) {
+      console.log('Enquiry tracking failed:', trackError);
+      // Continue anyway - don't block user from contacting vendor
+    }
+    
+    // Open phone dialer
+    try {
+      const canOpen = await Linking.canOpenURL(telUrl);
+      
+      if (canOpen) {
+        await Linking.openURL(telUrl);
+        console.log('Call initiated successfully');
+      } else {
+        console.log('Phone calls not supported on this device');
+        Alert.alert(
+          'Call Not Supported',
+          'Phone calls are not supported on this device.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      Alert.alert(
+        'Error',
+        'Could not initiate call. Please check your phone settings.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  const handleWhatsAppPress = async (whatsappNumber, vendorId) => {
+  // Handle WhatsApp with proper error handling
+  const handleWhatsAppPress = async (whatsappNumber, mobileNumber, vendorId) => {
     console.log('=== WHATSAPP FUNCTION ===');
-    console.log('Attempting to open WhatsApp for:', whatsappNumber);
+    console.log('WhatsApp number:', whatsappNumber);
+    console.log('Mobile number:', mobileNumber);
     console.log('Vendor ID:', vendorId);
     
-    if (whatsappNumber) {
-      // Track WhatsApp enquiry first
-      await trackEnquiry(2, vendorId); // enquiry_type=2 for WhatsApp
+    // First try WhatsApp number, then fallback to mobile number
+    let numberToUse = whatsappNumber;
+    let usingMobileAsFallback = false;
+    
+    // Check if WhatsApp number is invalid/empty
+    if (!numberToUse || 
+        numberToUse.trim() === '' || 
+        numberToUse.toLowerCase() === 'null' || 
+        numberToUse === 'undefined' || 
+        numberToUse === 'N/A') {
       
-      const cleanedNumber = whatsappNumber.replace(/^\+?0?|\s+/g, '');
-      const whatsappUrl = `https://wa.me/${cleanedNumber}`;
+      console.log('WhatsApp number is empty/invalid, checking mobile number');
       
-      console.log('WhatsApp URL:', whatsappUrl);
+      // Ask user if they want to use mobile number instead
+      Alert.alert(
+        'WhatsApp Not Available',
+        'This vendor hasn\'t provided a WhatsApp number. Would you like to try their mobile number instead?',
+        [
+          { 
+            text: 'No Thanks', 
+            style: 'cancel',
+            onPress: () => {
+              Alert.alert(
+                'Try Calling Instead',
+                'You can try calling the vendor directly using the Call button.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+          { 
+            text: 'Use Mobile Number', 
+            onPress: () => {
+              if (mobileNumber && 
+                  mobileNumber.trim() !== '' && 
+                  mobileNumber.toLowerCase() !== 'null' && 
+                  mobileNumber !== 'undefined' && 
+                  mobileNumber !== 'N/A') {
+                // Recursively call with mobile number
+                handleWhatsAppPress(mobileNumber, '', vendorId);
+              } else {
+                Alert.alert(
+                  'No Number Available',
+                  'No contact number is available for this vendor.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
+    console.log('Using number for WhatsApp:', numberToUse);
+    console.log('Using mobile as fallback?', usingMobileAsFallback);
+    
+    // Convert to string and trim
+    let cleanedNumber = numberToUse.toString().trim();
+    
+    // Remove all non-numeric characters except leading +
+    cleanedNumber = cleanedNumber.replace(/[^\d\+]/g, '');
+    
+    console.log('After cleaning:', cleanedNumber);
+    
+    // If empty after cleaning, show error
+    if (!cleanedNumber || cleanedNumber.trim() === '') {
+      Alert.alert(
+        'Invalid Number',
+        'The WhatsApp number provided is not valid.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Format the number for WhatsApp
+    let formattedNumber = cleanedNumber;
+    
+    if (formattedNumber.startsWith('+91')) {
+      // Already formatted with +91
+    } else if (formattedNumber.startsWith('91') && formattedNumber.length === 12) {
+      formattedNumber = '+' + formattedNumber;
+    } else if (formattedNumber.startsWith('0')) {
+      formattedNumber = '+91' + formattedNumber.substring(1);
+    } else if (formattedNumber.length === 10) {
+      formattedNumber = '+91' + formattedNumber;
+    } else if (formattedNumber.length === 12 && !formattedNumber.startsWith('+')) {
+      formattedNumber = '+' + formattedNumber;
+    }
+    
+    console.log('Formatted for WhatsApp:', formattedNumber);
+    
+    // Create WhatsApp URL
+    const whatsappUrl = `https://wa.me/${formattedNumber}`;
+    console.log('WhatsApp URL:', whatsappUrl);
+    
+    // Track enquiry first (optional, don't block if it fails)
+    try {
+      await trackEnquiry(2, vendorId);
+      console.log('WhatsApp enquiry tracked successfully');
+    } catch (trackError) {
+      console.log('Enquiry tracking failed:', trackError);
+      // Continue anyway - don't block user from contacting vendor
+    }
+    
+    // Open WhatsApp
+    try {
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
       
-      Linking.openURL(whatsappUrl)
-        .then(() => console.log('WhatsApp opened successfully'))
-        .catch(err => {
-          console.error('Error opening WhatsApp:', err);
-          Alert.alert('Error', 'Could not open WhatsApp');
-        });
-    } else {
-      console.log('No WhatsApp number available');
-      Alert.alert('Error', 'WhatsApp number not available');
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+        console.log('WhatsApp opened successfully');
+      } else {
+        console.log('WhatsApp not installed or URL not supported');
+        Alert.alert(
+          'WhatsApp Not Installed',
+          'WhatsApp is not installed on your device.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Install WhatsApp', 
+              onPress: () => {
+                Linking.openURL('market://details?id=com.whatsapp');
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening WhatsApp:', error);
+      Alert.alert(
+        'Error',
+        'Could not open WhatsApp. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -2066,6 +2544,7 @@ export default function Shop() {
     setSelectedBrands([]);
     setBusinessTypeFilter('all');
     setBusinessTypeDropdownVisible(false);
+    setSearchQuery('');
     
     try {
       // Fetch all vendors again (no filters)
@@ -2135,6 +2614,27 @@ export default function Shop() {
         if (vendorsResponse.data.result === 'Success') {
           setVendors(vendorsResponse.data.storeList);
           setFilteredVendors(vendorsResponse.data.storeList);
+          
+          // Debug: Check vendor contact info
+          console.log('=============================================================');
+          console.log('VENDOR CONTACT INFO SUMMARY:');
+          vendorsResponse.data.storeList.forEach((vendor, index) => {
+            const hasMobile = vendor.mobile && vendor.mobile.trim() !== '' && 
+                            vendor.mobile.toLowerCase() !== 'null' && 
+                            vendor.mobile !== 'undefined' && 
+                            vendor.mobile !== 'N/A';
+            const hasWhatsApp = vendor.whatsapp && vendor.whatsapp.trim() !== '' && 
+                              vendor.whatsapp.toLowerCase() !== 'null' && 
+                              vendor.whatsapp !== 'undefined' && 
+                              vendor.whatsapp !== 'N/A';
+            
+            console.log(`${index + 1}. ${vendor.name}`);
+            console.log(`   Mobile: ${hasMobile ? vendor.mobile : 'NOT AVAILABLE'}`);
+            console.log(`   WhatsApp: ${hasWhatsApp ? vendor.whatsapp : 'NOT AVAILABLE'}`);
+            console.log('---');
+          });
+          console.log('=============================================================');
+          
           console.log('=============================================================');
           console.log('VENDORS SET SUCCESSFULLY');
           console.log('Number of vendors:', vendorsResponse.data.storeList.length);
@@ -2517,13 +3017,36 @@ export default function Shop() {
   const renderCard = ({ item }) => {
     console.log('=============================================================');
     console.log('RENDERING CARD');
-    console.log('Item data:', JSON.stringify(item, null, 2));
+    console.log('Item ID:', item.id);
+    console.log('Item Name:', item.name);
+    console.log('Mobile:', item.mobile);
+    console.log('WhatsApp:', item.whatsapp);
+    console.log('Has Mobile?', !!item.mobile && item.mobile.trim() !== '' && 
+                 item.mobile.toLowerCase() !== 'null' && item.mobile !== 'undefined' && 
+                 item.mobile !== 'N/A');
+    console.log('Has WhatsApp?', !!item.whatsapp && item.whatsapp.trim() !== '' && 
+                 item.whatsapp.toLowerCase() !== 'null' && item.whatsapp !== 'undefined' && 
+                 item.whatsapp !== 'N/A');
     console.log('=============================================================');
     
     // Determine if dealer or vendor
     const isDealer = item.dealer === "1" || item.dealer === 1;
     const businessType = isDealer ? "Dealer" : "Vendor";
     const tagColor = isDealer ? "#2E7D32" : "#1976D2"; // Green for dealer, Blue for vendor
+    
+    // Check if mobile number is available
+    const hasMobile = item.mobile && 
+                     item.mobile.trim() !== '' && 
+                     item.mobile.toLowerCase() !== 'null' && 
+                     item.mobile !== 'undefined' && 
+                     item.mobile !== 'N/A';
+    
+    // Check if WhatsApp number is available
+    const hasWhatsApp = item.whatsapp && 
+                       item.whatsapp.trim() !== '' && 
+                       item.whatsapp.toLowerCase() !== 'null' && 
+                       item.whatsapp !== 'undefined' && 
+                       item.whatsapp !== 'N/A';
     
     return (
       <View style={styles.card}>
@@ -2555,25 +3078,47 @@ export default function Shop() {
         </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => handleCallPress(item.mobile, item.id)}
+            style={[
+              styles.button,
+              !hasMobile && styles.disabledButton
+            ]} 
+            onPress={() => {
+              if (hasMobile) {
+                handleCallPress(item.mobile, item.id);
+              } else {
+                Alert.alert(
+                  'Phone Not Available',
+                  'This vendor has not provided a phone number.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }}
+            disabled={!hasMobile}
           >
-            <Ionicons name="call" size={16} color="white" style={styles.icon} />
-            <Text style={styles.buttonText}>Call</Text>
+            <Ionicons 
+              name="call" 
+              size={16} 
+              color={!hasMobile ? '#AAAAAA' : 'white'} 
+              style={styles.icon} 
+            />
+            <Text style={[
+              styles.buttonText,
+              !hasMobile && styles.disabledButtonText
+            ]}>
+              Call
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.button} 
             onPress={() => {
               console.log("enq params");
-              
               console.log(cat_id, customer_id,  item.id,  item.name );
               
               router.push({
                 pathname: '/components/Enquiry',
                 params: { cat_id, customer_id, vendor_id: item.id, shop_name: item.name }
               });
-            
             }}
           >
             <Ionicons name="information-circle" size={16} color="white" style={styles.icon} />
@@ -2581,11 +3126,35 @@ export default function Shop() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => handleWhatsAppPress(item.whatsapp, item.id)}
+            style={[
+              styles.button,
+              (!hasMobile && !hasWhatsApp) && styles.disabledButton
+            ]} 
+            onPress={() => {
+              if (hasWhatsApp || hasMobile) {
+                handleWhatsAppPress(item.whatsapp, item.mobile, item.id);
+              } else {
+                Alert.alert(
+                  'No Contact Available',
+                  'This vendor has not provided any contact number.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }}
+            disabled={!hasMobile && !hasWhatsApp}
           >
-            <Ionicons name="logo-whatsapp" size={16} color="white" style={styles.icon} />
-            <Text style={styles.buttonText}>WhatsApp</Text>
+            <Ionicons 
+              name="logo-whatsapp" 
+              size={16} 
+              color={(!hasMobile && !hasWhatsApp) ? '#AAAAAA' : 'white'} 
+              style={styles.icon} 
+            />
+            <Text style={[
+              styles.buttonText,
+              (!hasMobile && !hasWhatsApp) && styles.disabledButtonText
+            ]}>
+              WhatsApp
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -3373,10 +3942,17 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 33,
   },
+  disabledButton: {
+    backgroundColor: '#CCCCCC',
+    borderColor: '#AAAAAA',
+  },
   buttonText: { 
     color: 'white', 
     fontSize: 10, 
     fontWeight: '600',
+  },
+  disabledButtonText: {
+    color: '#888888',
   },
   icon: { 
     // Icon styling if needed

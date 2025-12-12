@@ -469,14 +469,14 @@ export default function HirepeopleDetails1() {
             {activeTab === 'Overview' && (
               <View style={styles.infoGrid}>
                 <View style={styles.infoItem}>
-                  <Ionicons name="cash" size={20} color="#8B4513" />
+                  <Ionicons name="cash" size={20} color="#8B4513" style={{ paddingRight: 10 }} />
                   <View>
                     <Text style={styles.infoLabel}>Cost with Material</Text>
                     <Text style={styles.infoValue}>₹{person.costwithmeterial || 'Not specified'}</Text>
                   </View>
                 </View>
                 <View style={styles.infoItem}>
-                  <Ionicons name="construct" size={20} color="#8B4513" />
+                  <Ionicons name="construct" size={20} color="#8B4513" style={{ paddingRight: 10 }}/>
                   <View>
                     <Text style={styles.infoLabel}>Work Type</Text>
                     <Text style={styles.infoValue}>{person.worktype || 'Not specified'}</Text>
