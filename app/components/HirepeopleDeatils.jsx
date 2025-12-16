@@ -761,10 +761,12 @@ import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
   Linking,
   Platform,
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -772,28 +774,25 @@ import {
   View
 } from 'react-native';
 import logoimg from '../../assets/images/veebuilder.png';
-import { SessionContext } from '../../context/SessionContext'; // Adjust path as needed
+import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
 
-// Custom Image component with proper error handling
+const { width } = Dimensions.get('window');
+
+// Custom Image component
 const ProfessionalImage = ({ imageUrl, style }) => {
   const [imageError, setImageError] = useState(false);
   
-  // Check if URL is valid before even trying to load
   const isValidUrl = (url) => {
     if (!url) return false;
     if (typeof url !== 'string') return false;
     if (url.trim() === '') return false;
     if (url === 'null' || url === 'undefined' || url === 'N/A') return false;
     if (!url.startsWith('http')) return false;
-    
-    // Additional checks for common problematic patterns
     if (url.includes('default.jpg') || url.includes('placeholder')) return false;
-    
     return true;
   };
 
-  // Determine if we should even try to load the URL
   const shouldLoadImage = isValidUrl(imageUrl);
 
   return (
@@ -801,13 +800,7 @@ const ProfessionalImage = ({ imageUrl, style }) => {
       source={shouldLoadImage && !imageError ? { uri: imageUrl } : logoimg}
       style={style}
       defaultSource={logoimg}
-      onError={() => {
-        console.log('Image failed to load, using fallback:', imageUrl);
-        setImageError(true);
-      }}
-      onLoad={() => {
-        console.log('Image loaded successfully:', imageUrl);
-      }}
+      onError={() => setImageError(true)}
       resizeMode="cover"
     />
   );
@@ -815,7 +808,7 @@ const ProfessionalImage = ({ imageUrl, style }) => {
 
 export default function HirepeopleDetails() {
   const router = useRouter();
-  const { session, getUserIdSync } = useContext(SessionContext);
+  const { getUserIdSync } = useContext(SessionContext);
   
   const {
     id,
@@ -826,45 +819,22 @@ export default function HirepeopleDetails() {
     customer_id = '',
   } = useLocalSearchParams();
 
-  // Console log all parameters
-  console.log('=================== COMPONENT PARAMETERS ===================');
-  console.log('ID:', id);
-  console.log('Title:', title);
-  console.log('Category ID:', cat_id);
-  console.log('V ID:', v_id);
-  console.log('User ID:', user_id);
-  console.log('Customer ID:', customer_id);
-  console.log('Session User ID:', getUserIdSync());
-  console.log('========================================================');
-  console.log('');
-
   const [people, setPeople] = useState([]);
   const [filteredPeople, setFilteredPeople] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [trackingCalls, setTrackingCalls] = useState({}); // Track ongoing API calls
+  const [trackingCalls, setTrackingCalls] = useState({});
 
-  // API function to track enquiry
   const trackEnquiry = async (professionId, enquiryType, professionalName = '') => {
     const userId = getUserIdSync();
     
-    console.log('=================== TRACKING ENQUIRY ===================');
-    console.log('User ID:', userId);
-    console.log('Profession ID (poi_id):', professionId);
-    console.log('Enquiry Type:', enquiryType);
-    console.log('Professional Name:', professionalName);
-    console.log('========================================================');
-    
     if (!userId) {
-      console.log('❌ No user ID found - skipping tracking');
       return false;
     }
 
-    // Prevent duplicate tracking for the same action
     const trackingKey = `${professionId}_${enquiryType}`;
     if (trackingCalls[trackingKey]) {
-      console.log('🛑 Tracking call already in progress for:', trackingKey);
       return false;
     }
 
@@ -872,57 +842,32 @@ export default function HirepeopleDetails() {
       setTrackingCalls(prev => ({ ...prev, [trackingKey]: true }));
       
       const url = `https://veebuilds.com/mobile/save_enquiry_professional.php`;
-      const params = {
-        user_id: userId,
-        enquiry_type: enquiryType,
-        poi_id: professionId
-      };
+      const response = await api.get(url, {
+        params: {
+          user_id: userId,
+          enquiry_type: enquiryType,
+          poi_id: professionId
+        }
+      });
 
-      console.log('📡 Sending tracking request:');
-      console.log('URL:', url);
-      console.log('Params:', params);
-
-      const response = await api.get(url, { params });
-      
-      console.log('✅ Tracking response:', response.data);
-      
-      if (response.data?.status) {
-        console.log('🎯 Successfully tracked enquiry');
-        return true;
-      } else {
-        console.log('❌ Tracking failed:', response.data?.message);
-        return false;
-      }
+      return response.data?.status || false;
     } catch (error) {
-      console.log('=================== TRACKING ERROR ===================');
-      console.log('Error tracking enquiry:', error.message);
-      console.log('Error details:', JSON.stringify(error.response?.data, null, 2));
-      console.log('=====================================================');
+      console.error('Tracking error:', error.message);
       return false;
     } finally {
-      // Clear tracking flag after a delay
       setTimeout(() => {
         setTrackingCalls(prev => {
           const newState = { ...prev };
           delete newState[trackingKey];
           return newState;
         });
-      }, 3000);
+      }, 2000);
     }
   };
 
   const handleCallPress = async (mobileNumber, professionId, professionalName) => {
-    console.log('=================== CALL BUTTON PRESSED ===================');
-    console.log('Professional Name:', professionalName);
-    console.log('Phone Number:', mobileNumber);
-    console.log('Profession ID:', professionId);
-    console.log('===========================================================');
-
     if (mobileNumber) {
-      // Track the call action first
       await trackEnquiry(professionId, 1, professionalName);
-      
-      // Then initiate the call
       Linking.openURL(`tel:${mobileNumber}`);
     } else {
       Alert.alert('Error', 'Phone number not available');
@@ -930,17 +875,8 @@ export default function HirepeopleDetails() {
   };
 
   const handleWhatsAppPress = async (mobileNumber, professionId, professionalName) => {
-    console.log('=================== WHATSAPP BUTTON PRESSED ===================');
-    console.log('Professional Name:', professionalName);
-    console.log('Phone Number:', mobileNumber);
-    console.log('Profession ID:', professionId);
-    console.log('===============================================================');
-
     if (mobileNumber) {
-      // Track the WhatsApp action first
       await trackEnquiry(professionId, 2, professionalName);
-      
-      // Then open WhatsApp
       const phoneNumber = mobileNumber.replace(/^\+?0?/, '');
       Linking.openURL(`https://wa.me/${phoneNumber}`);
     } else {
@@ -949,44 +885,13 @@ export default function HirepeopleDetails() {
   };
 
   const fetchProfessionals = async () => {
-    const apiUrl = `professional_list_by_id.php?occupation=${id}`;
-    
-    console.log('=================== API REQUEST ===================');
-    console.log('URL:', apiUrl);
-    console.log('Method: GET');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('==================================================');
-    console.log('');
-
     try {
       setLoading(true);
-      const response = await api.get(apiUrl);
-
-      console.log('=================== API RESPONSE ===================');
-      console.log('Status:', response.status);
-      console.log('Status Text:', response.statusText);
-      console.log('Headers:', JSON.stringify(response.headers, null, 2));
-      console.log('');
-      console.log('Full Response Data:');
-      console.log(JSON.stringify(response.data, null, 2));
-      console.log('');
-      console.log('Response Data Type:', typeof response.data);
-      console.log('Has storeList:', !!response.data?.storeList);
-      
-      if (response.data?.storeList) {
-        console.log('Store List Length:', response.data.storeList.length);
-        console.log('Store List Items:');
-        response.data.storeList.forEach((item, index) => {
-          console.log(`  Item ${index + 1}:`, JSON.stringify(item, null, 4));
-        });
-      }
-      console.log('===================================================');
-      console.log('');
+      const response = await api.get(`professional_list_by_id.php?occupation=${id}`);
 
       if (response.data?.storeList) {
         const processedData = response.data.storeList.map((item) => {
           let imagePath = item.aatharimage || '';
-          const originalImagePath = imagePath;
           
           if (imagePath.includes('https://veebuilds.com')) {
             imagePath = imagePath.replace('https://veebuilds.com', '');
@@ -995,113 +900,46 @@ export default function HirepeopleDetails() {
 
           const finalImageUrl = imagePath ? `https://veebuilds.com/${imagePath}` : null;
           
-          console.log('=================== IMAGE PROCESSING ===================');
-          console.log('Item ID:', item.id);
-          console.log('Original Image Path:', originalImagePath);
-          console.log('Processed Image Path:', imagePath);
-          console.log('Final Image URL:', finalImageUrl);
-          console.log('========================================================');
-          console.log('');
-
           return {
             ...item,
             aatharimage: finalImageUrl,
           };
         });
         
-        console.log('=================== PROCESSED DATA ===================');
-        console.log('Total Processed Items:', processedData.length);
-        console.log('Processed Data:');
-        console.log(JSON.stringify(processedData, null, 2));
-        console.log('======================================================');
-        console.log('');
-        
         setPeople(processedData);
+        setFilteredPeople(processedData);
       }
     } catch (error) {
-      console.log('=================== API ERROR ===================');
-      console.log('Error Type:', error.constructor.name);
-      console.log('Error Message:', error.message);
-      console.log('Error Code:', error.code);
-      console.log('Error Config:', JSON.stringify(error.config, null, 2));
-      if (error.response) {
-        console.log('Error Response Status:', error.response.status);
-        console.log('Error Response Data:', JSON.stringify(error.response.data, null, 2));
-        console.log('Error Response Headers:', JSON.stringify(error.response.headers, null, 2));
-      }
-      console.log('Stack Trace:', error.stack);
-      console.log('=================================================');
-      console.log('');
-      
-      setError(error.message);
+      console.error('API error:', error.message);
+      setError(error.message || 'Failed to load professionals');
     } finally {
       setLoading(false);
-      console.log('=================== API CALL COMPLETED ===================');
-      console.log('Loading State Set to False');
-      console.log('Timestamp:', new Date().toISOString());
-      console.log('==========================================================');
-      console.log('');
     }
   };
 
   useEffect(() => {
-    console.log('=================== COMPONENT MOUNTED ===================');
-    console.log('Calling fetchProfessionals...');
-    console.log('=========================================================');
-    console.log('');
     fetchProfessionals();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
-    console.log('=================== SEARCH FILTER ===================');
-    console.log('Search Text:', searchText);
-    console.log('People Array Length:', people.length);
-    
     if (!searchText) {
-      console.log('No search text - showing all people');
       setFilteredPeople(people);
     } else {
       const lowerSearch = searchText.toLowerCase();
-      console.log('Search Text (lowercase):', lowerSearch);
-      
       const filtered = people.filter(
         (item) =>
           item.name?.toLowerCase().includes(lowerSearch) ||
           item.city?.toLowerCase().includes(lowerSearch)
       );
-      
-      console.log('Filtered Results Count:', filtered.length);
-      console.log('Filtered Results:');
-      filtered.forEach((item, index) => {
-        console.log(`  Result ${index + 1}: ${item.name} - ${item.city}`);
-      });
-      
       setFilteredPeople(filtered);
     }
-    console.log('====================================================');
-    console.log('');
   }, [searchText, people]);
 
-  const renderCard = ({ item }) => {
-    console.log('=================== RENDERING CARD ===================');
-    console.log('Item ID:', item.id);
-    console.log('Item Name:', item.name);
-    console.log('Item City:', item.city);
-    console.log('Item Image URL:', item.aatharimage);
-    console.log('======================================================');
-    console.log('');
-    
-    // Check if tracking is in progress for this item
+  const renderCard = ({ item, index }) => {
     const isCallTracking = trackingCalls[`${item.id}_1`];
     const isWhatsAppTracking = trackingCalls[`${item.id}_2`];
 
     const navigateToDetails = () => {
-      console.log('=================== NAVIGATION TO DETAILS ===================');
-      console.log('Target Route: /components/HirepeopleDetails1');
-      console.log('Navigation Data:', JSON.stringify(item, null, 2));
-      console.log('==============================================================');
-      console.log('');
-      
       router.push({
         pathname: '/components/HirepeopleDetails1',
         params: { data: JSON.stringify(item) },
@@ -1111,9 +949,12 @@ export default function HirepeopleDetails() {
     return (
       <LinearGradient
         colors={['#FDF6EC', '#F8F0E5', '#F4E8D8']}
-        style={styles.card}
+        style={[
+          styles.card,
+          index === 0 && styles.firstCard,
+          index === filteredPeople.length - 1 && styles.lastCard
+        ]}
       >
-        {/* Make the entire content area clickable */}
         <TouchableOpacity
           onPress={navigateToDetails}
           style={styles.cardContent}
@@ -1125,43 +966,44 @@ export default function HirepeopleDetails() {
           />
 
           <View style={styles.textGroupContainer}>
-            <View style={styles.textGroup}>
-              <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-                {item.name}
+            <Text style={styles.title} numberOfLines={2}>
+              {item.name}
+            </Text>
+            
+            <View style={styles.detailRow}>
+              <Ionicons 
+                name="location-outline" 
+                size={16} 
+                color="#8B7355" 
+                style={styles.icon}
+              />
+              <Text style={styles.subText} numberOfLines={2}>
+                {item.address || 'Address not available'}
               </Text>
-              <View style={styles.detailRow}>
-                <Ionicons 
-                  name="location-outline" 
-                  size={Platform.OS === 'ios' ? 16 : 14} 
-                  color="#8B7355" 
-                  style={styles.iconIOS}
-                />
-                <Text style={styles.subText} numberOfLines={2} ellipsizeMode="tail">
-                  {item.address}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Ionicons 
-                  name="briefcase-outline" 
-                  size={Platform.OS === 'ios' ? 16 : 14} 
-                  color="#8B7355" 
-                  style={styles.iconIOS}
-                />
-                <Text style={styles.subText}>
-                  {item.yearofexp} years of experience
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Ionicons 
-                  name="chatbubble-outline" 
-                  size={Platform.OS === 'ios' ? 16 : 14} 
-                  color="#8B7355" 
-                  style={styles.iconIOS}
-                />
-                <Text style={styles.subText}>
-                  {item.enquery} enquiry answers
-                </Text>
-              </View>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Ionicons 
+                name="briefcase-outline" 
+                size={16} 
+                color="#8B7355" 
+                style={styles.icon}
+              />
+              <Text style={styles.subText}>
+                {item.yearofexp || '0'} years of experience
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Ionicons 
+                name="chatbubble-outline" 
+                size={16} 
+                color="#8B7355" 
+                style={styles.icon}
+              />
+              <Text style={styles.subText}>
+                {item.enquery || '0'} enquiry answers
+              </Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -1179,12 +1021,7 @@ export default function HirepeopleDetails() {
               <ActivityIndicator size="small" color="white" />
             ) : (
               <>
-                <Ionicons 
-                  name="call" 
-                  size={Platform.OS === 'ios' ? 18 : 16} 
-                  color="white" 
-                  style={styles.buttonIcon}
-                />
+                <Ionicons name="call" size={16} color="white" />
                 <Text style={styles.buttonText}>Call</Text>
               </>
             )}
@@ -1193,36 +1030,22 @@ export default function HirepeopleDetails() {
           <TouchableOpacity
             style={styles.button}
             onPress={() => {
-              const enquiryParams = {
-                cat_id,
-                land_id: item.id,
-                v_id: item.id,
-                customer_id,
-                user_id,
-                product_name: item.name || '',
-                product_id: item.id,
-                city: item.city || '',
-              };
-              
-              console.log('=================== NAVIGATION TO ENQUIRY ===================');
-              console.log('Target Route: /components/HirepeopleEnquiry');
-              console.log('Enquiry Parameters:');
-              console.log(JSON.stringify(enquiryParams, null, 2));
-              console.log('==============================================================');
-              console.log('');
-              
               router.push({
                 pathname: '/components/HirepeopleEnquiry',
-                params: enquiryParams,
+                params: {
+                  cat_id,
+                  land_id: item.id,
+                  v_id: item.id,
+                  customer_id,
+                  user_id,
+                  product_name: item.name || '',
+                  product_id: item.id,
+                  city: item.city || '',
+                },
               });
             }}
           >
-            <Ionicons 
-              name="information-circle" 
-              size={Platform.OS === 'ios' ? 18 : 16} 
-              color="white" 
-              style={styles.buttonIcon}
-            />
+            <Ionicons name="information-circle" size={16} color="white" />
             <Text style={styles.buttonText}>Enquiry</Text>
           </TouchableOpacity>
 
@@ -1238,12 +1061,7 @@ export default function HirepeopleDetails() {
               <ActivityIndicator size="small" color="white" />
             ) : (
               <>
-                <Ionicons 
-                  name="logo-whatsapp" 
-                  size={Platform.OS === 'ios' ? 18 : 16} 
-                  color="white" 
-                  style={styles.buttonIcon}
-                />
+                <Ionicons name="logo-whatsapp" size={16} color="white" />
                 <Text style={styles.buttonText}>WhatsApp</Text>
               </>
             )}
@@ -1254,11 +1072,6 @@ export default function HirepeopleDetails() {
   };
 
   if (loading) {
-    console.log('=================== LOADING STATE ===================');
-    console.log('Component is in loading state');
-    console.log('=====================================================');
-    console.log('');
-    
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#8B4513" style={styles.loader} />
@@ -1267,23 +1080,11 @@ export default function HirepeopleDetails() {
   }
 
   if (error) {
-    console.log('=================== ERROR STATE ===================');
-    console.log('Component is in error state');
-    console.log('Error:', error);
-    console.log('===================================================');
-    console.log('');
-    
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Error: {error}</Text>
         <TouchableOpacity 
-          onPress={() => {
-            console.log('=================== BACK NAVIGATION (ERROR) ===================');
-            console.log('Navigating back due to error');
-            console.log('================================================================');
-            console.log('');
-            router.back();
-          }} 
+          onPress={() => router.back()} 
           style={styles.errorButton}
         >
           <Text style={styles.errorButtonText}>Go Back</Text>
@@ -1292,94 +1093,82 @@ export default function HirepeopleDetails() {
     );
   }
 
-  console.log('=================== RENDER MAIN COMPONENT ===================');
-  console.log('Filtered People Count:', filteredPeople.length);
-  console.log('Search Text:', searchText);
-  console.log('==============================================================');
-  console.log('');
-
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
       <LinearGradient
         colors={['#8B4513', '#A0522D', '#D2691E']}
         style={styles.header}
       >
-        <TouchableOpacity 
-          onPress={() => {
-            console.log('=================== BACK NAVIGATION ===================');
-            console.log('Back button pressed');
-            console.log('======================================================');
-            console.log('');
-            router.back();
-          }} 
-          style={styles.backButton}
-        >
-          <Ionicons 
-            name="arrow-back" 
-            size={Platform.OS === 'ios' ? 28 : 24} 
-            color="white" 
-          />
-        </TouchableOpacity>
-        
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
-            {title}
-          </Text>
-          <View style={styles.countContainer}>
-            <Text style={styles.countText}>
-              {filteredPeople.length} {filteredPeople.length === 1 ? 'Professional' : 'Professionals'}
+        <View style={styles.headerContent}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+          >
+            <Ionicons 
+              name="arrow-back" 
+              size={24} 
+              color="white" 
+            />
+          </TouchableOpacity>
+          
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerText} numberOfLines={1}>
+              {title}
             </Text>
-            {searchText && filteredPeople.length !== people.length && (
-              <Text style={styles.searchCountText} numberOfLines={1} ellipsizeMode="tail">
-                (Found {filteredPeople.length} of {people.length})
+            <View style={styles.countContainer}>
+              <Text style={styles.countText}>
+                {filteredPeople.length} Professional{filteredPeople.length !== 1 ? 's' : ''}
               </Text>
-            )}
+              {searchText && filteredPeople.length !== people.length && (
+                <Text style={styles.searchCountText}>
+                  (Found {filteredPeople.length} of {people.length})
+                </Text>
+              )}
+            </View>
           </View>
+          
+          <View style={styles.headerRightPlaceholder} />
         </View>
       </LinearGradient>
 
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons 
           name="search" 
-          size={Platform.OS === 'ios' ? 22 : 20} 
+          size={20} 
           color="#8B7355" 
           style={styles.searchIcon} 
         />
         <TextInput
-          placeholder="Search by name"
+          placeholder="Search by name or city"
           value={searchText}
-          onChangeText={(text) => {
-            console.log('=================== SEARCH INPUT CHANGE ===================');
-            console.log('New Search Text:', text);
-            console.log('===========================================================');
-            console.log('');
-            setSearchText(text);
-          }}
+          onChangeText={setSearchText}
           style={styles.searchInput}
           placeholderTextColor="#8B7355"
         />
+        {searchText.length > 0 && (
+          <TouchableOpacity 
+            onPress={() => setSearchText('')}
+            style={styles.clearSearchButton}
+          >
+            <Ionicons name="close-circle" size={18} color="#999" />
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Content */}
       {filteredPeople.length > 0 ? (
         <FlatList
           data={filteredPeople}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderCard}
           contentContainerStyle={styles.listContent}
-          onEndReached={() => {
-            console.log('=================== FLATLIST END REACHED ===================');
-            console.log('User scrolled to end of list');
-            console.log('============================================================');
-            console.log('');
-          }}
+          showsVerticalScrollIndicator={false}
         />
       ) : (
         <View style={styles.noResults}>
-          <Ionicons 
-            name="search-outline" 
-            size={Platform.OS === 'ios' ? 70 : 60} 
-            color="#8B7355" 
-          />
+          <Ionicons name="search-outline" size={60} color="#8B7355" />
           <Text style={styles.noResultsText}>No professionals found</Text>
           {searchText && (
             <Text style={styles.noResultsSubText}>
@@ -1388,7 +1177,7 @@ export default function HirepeopleDetails() {
           )}
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1398,54 +1187,58 @@ const styles = StyleSheet.create({
     backgroundColor: '#FDF6EC',
   },
   header: {
-    height: Platform.OS === 'ios' ? 150 : 140,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingTop: Platform.OS === 'ios' ? 15 : 15,
+    paddingBottom: 15,
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    zIndex: 10,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Platform.OS === 'ios' ? 0 : 5,
   },
   backButton: {
-    marginRight: Platform.OS === 'ios' ? 12 : 10,
-    padding: Platform.OS === 'ios' ? 6 : 4,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   headerTextContainer: {
     flex: 1,
-    marginLeft: Platform.OS === 'ios' ? 4 : 0,
+    marginHorizontal: 12,
+    alignItems: 'center',
   },
   headerText: {
     color: 'white',
-    fontSize: Platform.OS === 'ios' ? 20 : 22,
-    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-    marginBottom: Platform.OS === 'ios' ? 6 : 4,
-    lineHeight: Platform.OS === 'ios' ? 24 : 22,
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   countContainer: {
-    flexDirection: 'column',
+    alignItems: 'center',
   },
   countText: {
     color: 'white',
-    fontSize: Platform.OS === 'ios' ? 15 : 14,
-    fontWeight: Platform.OS === 'ios' ? '600' : '600',
+    fontSize: 14,
+    fontWeight: '600',
     opacity: 0.9,
-    lineHeight: Platform.OS === 'ios' ? 18 : 16,
   },
   searchCountText: {
     color: '#FFD700',
-    fontSize: Platform.OS === 'ios' ? 13 : 12,
-    fontWeight: Platform.OS === 'ios' ? '500' : '500',
-    marginTop: Platform.OS === 'ios' ? 3 : 2,
-    opacity: 0.9,
-    lineHeight: Platform.OS === 'ios' ? 16 : 14,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  headerRightPlaceholder: {
+    width: 40,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -1455,125 +1248,119 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     paddingHorizontal: 16,
-    borderRadius: Platform.OS === 'ios' ? 14 : 12,
-    height: Platform.OS === 'ios' ? 52 : 50,
+    borderRadius: 12,
+    height: 50,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 4,
-    borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
+    borderWidth: 1,
     borderColor: '#E8D5C4',
   },
   searchIcon: {
-    marginRight: Platform.OS === 'ios' ? 10 : 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: Platform.OS === 'ios' ? 17 : 16,
+    fontSize: 16,
     color: '#5D4037',
-    fontWeight: Platform.OS === 'ios' ? '500' : '500',
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-    lineHeight: Platform.OS === 'ios' ? 20 : 18,
+    paddingVertical: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    height: '100%',
+  },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   card: {
     backgroundColor: '#fff',
-    padding: Platform.OS === 'ios' ? 18 : 16,
+    padding: 16,
     marginHorizontal: 16,
-    marginVertical: Platform.OS === 'ios' ? 10 : 8,
-    borderRadius: Platform.OS === 'ios' ? 18 : 16,
+    marginVertical: 8,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: Platform.OS === 'ios' ? 14 : 12,
+    shadowRadius: 12,
     elevation: 6,
-    borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
+    borderWidth: 1,
     borderColor: '#E8D5C4',
-    minHeight: Platform.OS === 'ios' ? 210 : 200,
+  },
+  firstCard: {
+    marginTop: 4,
+  },
+  lastCard: {
+    marginBottom: Platform.OS === 'ios' ? 30 : 40,
   },
   cardContent: {
     flexDirection: 'row',
-    marginBottom: Platform.OS === 'ios' ? 18 : 16,
+    marginBottom: 16,
   },
   logo: {
-    width: Platform.OS === 'ios' ? '38%' : '40%',
-    height: Platform.OS === 'ios' ? 160 : 150,
-    borderRadius: Platform.OS === 'ios' ? 14 : 12,
+    width: width * 0.35,
+    height: 150,
+    borderRadius: 12,
     backgroundColor: "#f0f0f0",
-    borderWidth: Platform.OS === 'ios' ? 2.5 : 2,
+    borderWidth: 2,
     borderColor: '#E8D5C4',
   },
   textGroupContainer: {
     flex: 1,
-    marginLeft: Platform.OS === 'ios' ? 18 : 16,
-  },
-  textGroup: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    gap: Platform.OS === 'ios' ? 14 : 12,
+    marginLeft: 16,
+    justifyContent: 'space-between',
   },
   title: {
-    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
-    fontSize: Platform.OS === 'ios' ? 19 : 18,
+    fontWeight: 'bold',
+    fontSize: 18,
     color: '#5D4037',
-    textAlign: 'left',
-    marginBottom: Platform.OS === 'ios' ? 6 : 4,
-    lineHeight: Platform.OS === 'ios' ? 22 : 20,
+    marginBottom: 12,
+    lineHeight: 22,
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: Platform.OS === 'ios' ? 'center' : 'flex-start',
-    gap: Platform.OS === 'ios' ? 10 : 8,
+    alignItems: 'flex-start',
+    marginBottom: 10,
   },
-  iconIOS: {
-    marginTop: Platform.OS === 'ios' ? 1 : 0,
+  icon: {
+    marginTop: Platform.OS === 'ios' ? 1 : 2,
+    marginRight: 8,
   },
   subText: {
-    fontSize: Platform.OS === 'ios' ? 15 : 14,
+    fontSize: 14,
     color: '#8B7355',
-    textAlign: 'left',
-    fontWeight: Platform.OS === 'ios' ? '500' : '500',
+    fontWeight: '500',
     flex: 1,
-    lineHeight: Platform.OS === 'ios' ? 18 : 16,
+    lineHeight: 18,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
-    marginTop: 'auto',
-    paddingTop: Platform.OS === 'ios' ? 18 : 16,
-    gap: Platform.OS === 'ios' ? 10 : 8,
+    marginTop: 16,
+    gap: 8,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#8B4513',
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    paddingHorizontal: Platform.OS === 'ios' ? 10 : 8,
-    borderRadius: Platform.OS === 'ios' ? 12 : 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     flex: 1,
-    minHeight: Platform.OS === 'ios' ? 48 : 44,
-    maxWidth: '32%',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: Platform.OS === 'ios' ? 5 : 4,
-    elevation: 3,
+    minHeight: 44,
+    gap: 6,
   },
   buttonDisabled: {
     backgroundColor: '#A9A9A9',
     opacity: 0.7,
   },
-  buttonIcon: {
-    marginRight: Platform.OS === 'ios' ? 5 : 4,
-  },
   buttonText: {
     color: 'white',
-    fontSize: Platform.OS === 'ios' ? 13 : 12,
-    fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
-    lineHeight: Platform.OS === 'ios' ? 16 : 14,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   loader: {
     flex: 1,
@@ -1581,52 +1368,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    paddingBottom: Platform.OS === 'ios' ? 25 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 100,
   },
   errorText: {
     color: '#8B4513',
     textAlign: 'center',
     marginTop: 20,
-    fontSize: Platform.OS === 'ios' ? 17 : 16,
-    fontWeight: Platform.OS === 'ios' ? '500' : '500',
-    lineHeight: Platform.OS === 'ios' ? 22 : 20,
+    fontSize: 16,
+    fontWeight: '500',
   },
   errorButton: {
     backgroundColor: '#8B4513',
-    paddingHorizontal: Platform.OS === 'ios' ? 28 : 24,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    borderRadius: Platform.OS === 'ios' ? 12 : 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
     marginTop: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: Platform.OS === 'ios' ? 5 : 4,
-    elevation: 3,
+    alignSelf: 'center',
   },
   errorButtonText: {
     color: 'white',
-    fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
-    fontSize: Platform.OS === 'ios' ? 15 : 14,
-    lineHeight: Platform.OS === 'ios' ? 18 : 16,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   noResults: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 120 : 100,
+    paddingBottom: Platform.OS === 'ios' ? 120 : 150,
   },
   noResultsText: {
-    marginTop: Platform.OS === 'ios' ? 20 : 16,
-    fontSize: Platform.OS === 'ios' ? 17 : 16,
+    marginTop: 16,
+    fontSize: 16,
     color: '#8B7355',
-    fontWeight: Platform.OS === 'ios' ? '500' : '500',
-    lineHeight: Platform.OS === 'ios' ? 22 : 20,
+    fontWeight: '500',
   },
   noResultsSubText: {
-    marginTop: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: Platform.OS === 'ios' ? 15 : 14,
+    marginTop: 8,
+    fontSize: 14,
     color: '#8B7355',
     opacity: 0.8,
-    lineHeight: Platform.OS === 'ios' ? 18 : 16,
   },
 });

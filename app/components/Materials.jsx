@@ -1,10 +1,29 @@
 // import { Ionicons } from '@expo/vector-icons';
+// import axios from 'axios';
 // import { LinearGradient } from 'expo-linear-gradient';
 // import { useLocalSearchParams, useRouter } from 'expo-router';
-// import { useContext, useEffect, useState } from 'react';
-// import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+// import { useCallback, useContext, useEffect, useState } from 'react';
+// import {
+//   ActivityIndicator,
+//   Alert,
+//   Dimensions,
+//   Image,
+//   KeyboardAvoidingView,
+//   Modal,
+//   Platform,
+//   SafeAreaView,
+//   ScrollView,
+//   SectionList,
+//   StyleSheet,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   View
+// } from 'react-native';
 // import { SessionContext } from '../../context/SessionContext';
 // import api from "../services/api";
+
+// const { height } = Dimensions.get('window');
 
 // export default function Materials({ navigation }) {
 //   const [categories, setCategories] = useState([]);
@@ -14,6 +33,14 @@
 //   const router = useRouter();
 //   const params = useLocalSearchParams();
   
+//   // Search modal states
+//   const [searchModalVisible, setSearchModalVisible] = useState(false);
+//   const [searchQuery, setSearchQuery] = useState('');
+//   const [searchData, setSearchData] = useState([]);
+//   const [filteredSearchData, setFilteredSearchData] = useState([]);
+//   const [loadingSearch, setLoadingSearch] = useState(false);
+//   const [sectionedSearchData, setSectionedSearchData] = useState([]);
+  
 //   // Get the selected category ID from params and ensure it's string for comparison
 //   const selectedCategoryIdFromParams = params.selectedCategoryId ? params.selectedCategoryId.toString() : null;
 //   const [selectedCategoryId, setSelectedCategoryId] = useState(selectedCategoryIdFromParams);
@@ -21,7 +48,180 @@
 //   const { session, isSessionLoaded } = useContext(SessionContext);
 //   const userId = session?.id;
 
-//   // Fetch all categories
+//   // Utility function to handle image URLs
+//   const getImageUrl = (imagePath) => {
+//     if (!imagePath) return null;
+    
+//     if (imagePath.startsWith('http')) {
+//       return imagePath;
+//     }
+    
+//     return `https://veebuilds.com${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+//   };
+
+//   // Function to group search data alphabetically
+//   const groupDataAlphabetically = (data) => {
+//     if (!data || data.length === 0) return [];
+    
+//     // Remove duplicates based on id
+//     const uniqueData = Array.from(
+//       new Map(data.map(item => [item.id, item])).values()
+//     );
+    
+//     // Create a map to group by first letter
+//     const grouped = {};
+    
+//     uniqueData.forEach(item => {
+//       if (!item.name) return;
+      
+//       const firstLetter = item.name.charAt(0).toUpperCase();
+      
+//       if (!grouped[firstLetter]) {
+//         grouped[firstLetter] = [];
+//       }
+      
+//       grouped[firstLetter].push(item);
+//     });
+    
+//     // Convert to SectionList format and sort alphabetically
+//     const sections = Object.keys(grouped)
+//       .sort()
+//       .map(letter => ({
+//         title: letter,
+//         data: grouped[letter].sort((a, b) => a.name.localeCompare(b.name))
+//       }));
+    
+//     return sections;
+//   };
+
+//   // Fetch search data
+//   const fetchSearchData = useCallback(async () => {
+//     try {
+//       setLoadingSearch(true);
+//       const response = await axios.get(
+//         "https://veebuilds.com/mobile/searchlist.php",
+//         { timeout: 8000 }
+//       );
+      
+//       if (response.data.result === "Success") {
+//         const searchList = response.data.storeList || [];
+        
+//         // Remove duplicates based on id
+//         const uniqueSearchList = Array.from(
+//           new Map(searchList.map(item => [item.id, item])).values()
+//         );
+        
+//         setSearchData(uniqueSearchList);
+        
+//         // Group data alphabetically
+//         const groupedData = groupDataAlphabetically(uniqueSearchList);
+//         setSectionedSearchData(groupedData);
+//         setFilteredSearchData(uniqueSearchList);
+        
+//         return uniqueSearchList;
+//       } else {
+//         throw new Error('Failed to fetch search data');
+//       }
+//     } catch (error) {
+//       console.error('Search data error:', error);
+//       return [];
+//     } finally {
+//       setLoadingSearch(false);
+//     }
+//   }, []);
+
+//   // Handle search input change
+//   const handleSearchChange = (text) => {
+//     setSearchQuery(text);
+//     filterSearchData(text);
+//   };
+
+//   // Filter search data based on query
+//   const filterSearchData = useCallback((query) => {
+//     if (!query.trim()) {
+//       // If query is empty, show all data grouped
+//       const groupedData = groupDataAlphabetically(searchData);
+//       setSectionedSearchData(groupedData);
+//       return;
+//     }
+    
+//     const filtered = searchData.filter(item => 
+//       item.name && item.name.toLowerCase().includes(query.toLowerCase())
+//     );
+    
+//     // Remove duplicates before grouping
+//     const uniqueFiltered = Array.from(
+//       new Map(filtered.map(item => [item.id, item])).values()
+//     );
+    
+//     // Group filtered data
+//     const groupedData = groupDataAlphabetically(uniqueFiltered);
+//     setSectionedSearchData(groupedData);
+//   }, [searchData]);
+
+//   // Handle item selection from search
+//   const handleSearchItemSelect = (item) => {
+//     console.log('🔍 Search item selected:', item.name, 'ID:', item.id, 'Type:', item.type);
+    
+//     // Close search modal
+//     setSearchModalVisible(false);
+//     setSearchQuery('');
+    
+//     // Navigate to Shop screen with selected item
+//     if (userId && item.id) {
+//       router.push({ 
+//         pathname: '/components/Shop', 
+//         params: { 
+//           cat_id: item.id.toString(),
+//           customer_id: userId
+//         } 
+//       });
+//     } else {
+//       Alert.alert('Error', 'User session not found or item invalid');
+//     }
+//   };
+
+//   // Open search modal
+//   const handleSearchPress = () => {
+//     // Fetch search data if not already loaded
+//     if (searchData.length === 0) {
+//       fetchSearchData();
+//     }
+    
+//     setSearchModalVisible(true);
+//   };
+
+//   // Close search modal
+//   const closeSearchModal = () => {
+//     setSearchModalVisible(false);
+//     setSearchQuery('');
+//   };
+
+//   // Render search section header
+//   const renderSectionHeader = ({ section }) => (
+//     <View style={styles.sectionHeaderContainer}>
+//       <Text style={styles.sectionHeaderText}>{section.title}</Text>
+//     </View>
+//   );
+
+//   // Render search item
+//   const renderSearchItem = ({ item, index }) => (
+//     <TouchableOpacity
+//       style={styles.searchItem}
+//       onPress={() => handleSearchItemSelect(item)}
+//     >
+//       <Ionicons 
+//         name="search-outline" 
+//         size={18} 
+//         color="#666" 
+//         style={styles.searchItemIcon}
+//       />
+//       <Text style={styles.searchItemText}>{item.name}</Text>
+//       <Text style={styles.searchItemType}>{item.type}</Text>
+//     </TouchableOpacity>
+//   );
+
+//   // Original functions (keep as is)
 //   const fetchCategories = async () => {
 //     try {
 //       setLoading(true);
@@ -208,16 +408,19 @@
 //         </View>
 //       </LinearGradient>
 
-//       {/* Search Input */}
-//       <View style={styles.searchContainer}>
-//         <Ionicons name="search" size={20} color="#8B4513" style={styles.searchIcon} />
-//         <TextInput
-//           placeholder="Search materials..."
-//           style={styles.searchInput}
-//           placeholderTextColor="#A0522D"
-//           onPressIn={() => router.push('/components/Search')}
-//         />
-//       </View>
+//       {/* Search Input - Now opens search modal */}
+//       <TouchableOpacity onPress={handleSearchPress}>
+//         <View style={styles.searchContainer}>
+//           <Ionicons name="search" size={20} color="#8B4513" style={styles.searchIcon} />
+//           <TextInput
+//             placeholder="Search materials..."
+//             style={styles.searchInput}
+//             placeholderTextColor="#A0522D"
+//             editable={false}
+//             onPressIn={handleSearchPress}
+//           />
+//         </View>
+//       </TouchableOpacity>
 
 //       {/* Main Content Area */}
 //       <View style={styles.mainContent}>
@@ -346,6 +549,92 @@
 //           )}
 //         </View>
 //       </View>
+
+//       {/* Search Modal */}
+//       <Modal
+//         animationType="slide"
+//         transparent={true}
+//         visible={searchModalVisible}
+//         onRequestClose={closeSearchModal}
+//         statusBarTranslucent={true}
+//       >
+//         <SafeAreaView style={styles.searchModalSafeArea}>
+//           <View style={styles.searchModalContainer}>
+//             {/* Header stays fixed at top */}
+//             <View style={styles.searchModalHeader}>
+//               <TouchableOpacity 
+//                 onPress={closeSearchModal} 
+//                 style={styles.searchBackButton}
+//               >
+//                 <Ionicons name="arrow-back" size={24} color="#333" />
+//               </TouchableOpacity>
+//               <View style={styles.searchInputContainer}>
+//                 <Ionicons name="search" size={20} color="#999" style={styles.searchModalIcon} />
+//                 <TextInput
+//                   style={styles.searchModalInput}
+//                   placeholder="Search materials..."
+//                   placeholderTextColor="#999"
+//                   value={searchQuery}
+//                   onChangeText={handleSearchChange}
+//                   autoFocus={true}
+//                   returnKeyType="search"
+//                   blurOnSubmit={false}
+//                 />
+//                 {searchQuery.length > 0 && (
+//                   <TouchableOpacity onPress={() => setSearchQuery('')}>
+//                     <Ionicons name="close-circle" size={20} color="#999" />
+//                   </TouchableOpacity>
+//                 )}
+//               </View>
+//             </View>
+
+//             {/* Scrollable content area */}
+//             {loadingSearch ? (
+//               <View style={styles.searchLoadingContainer}>
+//                 <ActivityIndicator size="large" color="#8B4513" />
+//                 <Text style={styles.searchLoadingText}>Loading search data...</Text>
+//               </View>
+//             ) : (
+//               <KeyboardAvoidingView
+//                 style={styles.keyboardAvoidingView}
+//                 behavior={Platform.OS === "ios" ? "padding" : "height"}
+//                 keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+//               >
+//                 <ScrollView
+//                   style={styles.searchScrollView}
+//                   contentContainerStyle={styles.searchScrollContent}
+//                   showsVerticalScrollIndicator={true}
+//                   keyboardShouldPersistTaps="handled"
+//                 >
+//                   {sectionedSearchData.length > 0 ? (
+//                     <SectionList
+//                       sections={sectionedSearchData}
+//                       keyExtractor={(item, index) => `search-${item.id}-${index}-${item.type}`}
+//                       renderItem={renderSearchItem}
+//                       renderSectionHeader={renderSectionHeader}
+//                       stickySectionHeadersEnabled={true}
+//                       contentContainerStyle={styles.sectionListContent}
+//                       style={styles.sectionList}
+//                       keyboardShouldPersistTaps="handled"
+//                       ListEmptyComponent={
+//                         <View style={styles.searchEmptyContainer}>
+//                           <Ionicons name="search-outline" size={64} color="#ccc" />
+//                           <Text style={styles.searchEmptyText}>No results found</Text>
+//                         </View>
+//                       }
+//                     />
+//                   ) : (
+//                     <View style={styles.searchEmptyContainer}>
+//                       <Ionicons name="search-outline" size={64} color="#ccc" />
+//                       <Text style={styles.searchEmptyText}>No categories available</Text>
+//                     </View>
+//                   )}
+//                 </ScrollView>
+//               </KeyboardAvoidingView>
+//             )}
+//           </View>
+//         </SafeAreaView>
+//       </Modal>
 //     </View>
 //   );
 // }
@@ -611,6 +900,139 @@
 //     fontSize: 14,
 //     textAlign: 'center',
 //   },
+
+//   // Search Modal Styles
+//   searchModalSafeArea: {
+//     flex: 1,
+//     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+//   },
+//   searchModalContainer: {
+//     flex: 1,
+//     backgroundColor: '#fff',
+//     marginTop: Platform.OS === 'ios' ? 0 : 20,
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     overflow: 'hidden',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: -2 },
+//     shadowOpacity: 0.25,
+//     shadowRadius: 10,
+//     elevation: 20,
+//   },
+//   searchModalHeader: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingHorizontal: 15,
+//     paddingVertical: 15,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#eee',
+//     backgroundColor: '#fff',
+//     zIndex: 1000,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 1 },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 2,
+//     elevation: 3,
+//   },
+//   searchBackButton: {
+//     padding: 8,
+//     marginRight: 10,
+//   },
+//   searchInputContainer: {
+//     flex: 1,
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     backgroundColor: '#f5f5f5',
+//     borderRadius: 10,
+//     paddingHorizontal: 15,
+//     height: 44,
+//   },
+//   searchModalIcon: {
+//     marginRight: 10,
+//   },
+//   searchModalInput: {
+//     flex: 1,
+//     fontSize: 16,
+//     color: '#333',
+//     paddingVertical: 8,
+//   },
+//   searchLoadingContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingTop: 50,
+//   },
+//   searchLoadingText: {
+//     marginTop: 10,
+//     fontSize: 14,
+//     color: '#666',
+//   },
+//   keyboardAvoidingView: {
+//     flex: 1,
+//   },
+//   searchScrollView: {
+//     flex: 1,
+//   },
+//   searchScrollContent: {
+//     flexGrow: 1,
+//   },
+//   sectionListContent: {
+//     paddingBottom: 100,
+//   },
+//   sectionList: {
+//     flex: 1,
+//   },
+//   sectionHeaderContainer: {
+//     backgroundColor: '#f8f8f8',
+//     paddingHorizontal: 15,
+//     paddingVertical: 10,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#eee',
+//     borderTopWidth: 1,
+//     borderTopColor: '#eee',
+//   },
+//   sectionHeaderText: {
+//     fontSize: 16,
+//     fontWeight: '600',
+//     color: '#8B4513',
+//   },
+//   searchItem: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingHorizontal: 15,
+//     paddingVertical: 14,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#f0f0f0',
+//   },
+//   searchItemIcon: {
+//     marginRight: 12,
+//   },
+//   searchItemText: {
+//     flex: 1,
+//     fontSize: 16,
+//     color: '#333',
+//   },
+//   searchItemType: {
+//     fontSize: 12,
+//     color: '#666',
+//     backgroundColor: '#f0f0f0',
+//     paddingHorizontal: 8,
+//     paddingVertical: 2,
+//     borderRadius: 4,
+//     marginLeft: 8,
+//   },
+//   searchEmptyContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingTop: 100,
+//     minHeight: height * 0.5,
+//   },
+//   searchEmptyText: {
+//     marginTop: 16,
+//     fontSize: 16,
+//     color: '#666',
+//   },
 // });
 
 
@@ -630,12 +1052,14 @@ import {
   SafeAreaView,
   ScrollView,
   SectionList,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SessionContext } from '../../context/SessionContext';
 import api from "../services/api";
 
@@ -648,6 +1072,7 @@ export default function Materials({ navigation }) {
   const [showTrending, setShowTrending] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   
   // Search modal states
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -1006,28 +1431,36 @@ export default function Materials({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#ed9d64ff" barStyle="light-content" />
+      
       {/* Header with Brown Gradient */}
       <LinearGradient
         colors={['#ed9d64ff', '#d88e5aff', '#b0652fff']}
-        style={styles.header}
+        style={[
+          styles.header,
+          { 
+            paddingTop: Platform.OS === 'ios' ? insets.top : StatusBar.currentHeight,
+            height: Platform.OS === 'ios' ? insets.top + 90 : (StatusBar.currentHeight || 0) + 80
+          }
+        ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={Platform.OS === 'ios' ? 24 : 22} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerText}>{getSelectedCategoryName()}</Text>
           <View style={styles.headerIcon}>
-            <Ionicons name="construct" size={24} color="white" />
+            <Ionicons name="construct" size={Platform.OS === 'ios' ? 24 : 22} color="white" />
           </View>
         </View>
       </LinearGradient>
 
       {/* Search Input - Now opens search modal */}
-      <TouchableOpacity onPress={handleSearchPress}>
+      <TouchableOpacity onPress={handleSearchPress} style={styles.searchTouchable}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#8B4513" style={styles.searchIcon} />
+          <Ionicons name="search" size={Platform.OS === 'ios' ? 20 : 18} color="#8B4513" style={styles.searchIcon} />
           <TextInput
             placeholder="Search materials..."
             style={styles.searchInput}
@@ -1038,8 +1471,8 @@ export default function Materials({ navigation }) {
         </View>
       </TouchableOpacity>
 
-      {/* Main Content Area */}
-      <View style={styles.mainContent}>
+      {/* Main Content Area with safe bottom padding */}
+      <View style={[styles.mainContent, { marginBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 10) : 0 }]}>
         {/* Left Sidebar - Categories */}
         <View style={styles.sidebar}>
           <TouchableOpacity 
@@ -1051,7 +1484,7 @@ export default function Materials({ navigation }) {
           >
             <Ionicons 
               name="apps" 
-              size={16} 
+              size={Platform.OS === 'ios' ? 16 : 14} 
               color={selectedCategoryId === null ? 'white' : '#8B4513'} 
             />
             <Text style={[
@@ -1064,7 +1497,10 @@ export default function Materials({ navigation }) {
 
           <ScrollView 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
+            contentContainerStyle={[
+              styles.categoriesList,
+              { paddingBottom: Platform.OS === 'android' ? 25 : 20 }
+            ]}
           >
             {mainCategories.map((item, index) => {
               const isSelected = selectedCategoryId === item.id.toString();
@@ -1122,7 +1558,13 @@ export default function Materials({ navigation }) {
           ) : (
             <ScrollView 
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.materialsGrid}
+              contentContainerStyle={[
+                styles.materialsGrid,
+                { 
+                  paddingBottom: Platform.OS === 'ios' ? 20 : 30,
+                  minHeight: Platform.OS === 'android' ? height * 0.5 : 200
+                }
+              ]}
             >
               {categories.length > 0 ? (
                 categories.map((item, index) => (
@@ -1149,14 +1591,14 @@ export default function Materials({ navigation }) {
                         <Text style={styles.materialName} numberOfLines={2}>
                           {item.title}
                         </Text>
-                        <Ionicons name="chevron-forward" size={16} color="white" />
+                        <Ionicons name="chevron-forward" size={Platform.OS === 'ios' ? 16 : 14} color="white" />
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.noMaterialsContainer}>
-                  <Ionicons name="construct-outline" size={48} color="#8B4513" />
+                  <Ionicons name="construct-outline" size={Platform.OS === 'ios' ? 48 : 40} color="#8B4513" />
                   <Text style={styles.noMaterialsText}>No materials found</Text>
                   <Text style={styles.noMaterialsSubText}>Try selecting a different category</Text>
                 </View>
@@ -1166,7 +1608,7 @@ export default function Materials({ navigation }) {
         </View>
       </View>
 
-      {/* Search Modal */}
+      {/* Search Modal - Fixed to avoid hiding behind navigation bar */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1174,51 +1616,70 @@ export default function Materials({ navigation }) {
         onRequestClose={closeSearchModal}
         statusBarTranslucent={true}
       >
-        <SafeAreaView style={styles.searchModalSafeArea}>
-          <View style={styles.searchModalContainer}>
-            {/* Header stays fixed at top */}
-            <View style={styles.searchModalHeader}>
-              <TouchableOpacity 
-                onPress={closeSearchModal} 
-                style={styles.searchBackButton}
-              >
-                <Ionicons name="arrow-back" size={24} color="#333" />
-              </TouchableOpacity>
-              <View style={styles.searchInputContainer}>
-                <Ionicons name="search" size={20} color="#999" style={styles.searchModalIcon} />
-                <TextInput
-                  style={styles.searchModalInput}
-                  placeholder="Search materials..."
-                  placeholderTextColor="#999"
-                  value={searchQuery}
-                  onChangeText={handleSearchChange}
-                  autoFocus={true}
-                  returnKeyType="search"
-                  blurOnSubmit={false}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={20} color="#999" />
-                  </TouchableOpacity>
-                )}
+        <SafeAreaView style={[
+          styles.searchModalSafeArea,
+          { 
+            paddingTop: Platform.OS === 'ios' ? 0 : StatusBar.currentHeight,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)'
+          }
+        ]}>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoidingView}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
+            <View style={[
+              styles.searchModalContainer,
+              { 
+                borderTopLeftRadius: 20, 
+                borderTopRightRadius: 20,
+                paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 25)
+              }
+            ]}>
+              {/* Header stays fixed at top */}
+              <View style={styles.searchModalHeader}>
+                <TouchableOpacity 
+                  onPress={closeSearchModal} 
+                  style={styles.searchBackButton}
+                >
+                  <Ionicons name="arrow-back" size={Platform.OS === 'ios' ? 24 : 22} color="#333" />
+                </TouchableOpacity>
+                <View style={styles.searchInputContainer}>
+                  <Ionicons name="search" size={Platform.OS === 'ios' ? 20 : 18} color="#999" style={styles.searchModalIcon} />
+                  <TextInput
+                    style={styles.searchModalInput}
+                    placeholder="Search materials..."
+                    placeholderTextColor="#999"
+                    value={searchQuery}
+                    onChangeText={handleSearchChange}
+                    autoFocus={true}
+                    returnKeyType="search"
+                    blurOnSubmit={false}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={Platform.OS === 'ios' ? 20 : 18} color="#999" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-            </View>
 
-            {/* Scrollable content area */}
-            {loadingSearch ? (
-              <View style={styles.searchLoadingContainer}>
-                <ActivityIndicator size="large" color="#8B4513" />
-                <Text style={styles.searchLoadingText}>Loading search data...</Text>
-              </View>
-            ) : (
-              <KeyboardAvoidingView
-                style={styles.keyboardAvoidingView}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-              >
+              {/* Scrollable content area with proper bottom padding */}
+              {loadingSearch ? (
+                <View style={styles.searchLoadingContainer}>
+                  <ActivityIndicator size="large" color="#8B4513" />
+                  <Text style={styles.searchLoadingText}>Loading search data...</Text>
+                </View>
+              ) : (
                 <ScrollView
                   style={styles.searchScrollView}
-                  contentContainerStyle={styles.searchScrollContent}
+                  contentContainerStyle={[
+                    styles.searchScrollContent,
+                    { 
+                      paddingBottom: Platform.OS === 'ios' ? 100 : 120,
+                      flexGrow: 1
+                    }
+                  ]}
                   showsVerticalScrollIndicator={true}
                   keyboardShouldPersistTaps="handled"
                 >
@@ -1229,26 +1690,29 @@ export default function Materials({ navigation }) {
                       renderItem={renderSearchItem}
                       renderSectionHeader={renderSectionHeader}
                       stickySectionHeadersEnabled={true}
-                      contentContainerStyle={styles.sectionListContent}
+                      contentContainerStyle={[
+                        styles.sectionListContent,
+                        { paddingBottom: Platform.OS === 'android' ? 40 : 20 }
+                      ]}
                       style={styles.sectionList}
                       keyboardShouldPersistTaps="handled"
                       ListEmptyComponent={
                         <View style={styles.searchEmptyContainer}>
-                          <Ionicons name="search-outline" size={64} color="#ccc" />
+                          <Ionicons name="search-outline" size={Platform.OS === 'ios' ? 64 : 56} color="#ccc" />
                           <Text style={styles.searchEmptyText}>No results found</Text>
                         </View>
                       }
                     />
                   ) : (
                     <View style={styles.searchEmptyContainer}>
-                      <Ionicons name="search-outline" size={64} color="#ccc" />
+                      <Ionicons name="search-outline" size={Platform.OS === 'ios' ? 64 : 56} color="#ccc" />
                       <Text style={styles.searchEmptyText}>No categories available</Text>
                     </View>
                   )}
                 </ScrollView>
-              </KeyboardAvoidingView>
-            )}
-          </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </View>
@@ -1267,12 +1731,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     color: '#8B4513',
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
   },
 
   // Header Styles
   header: {
-    height: 120,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     shadowColor: '#000',
@@ -1301,19 +1764,21 @@ const styles = StyleSheet.create({
   },
   headerText: { 
     color: 'white', 
-    fontSize: 24, 
+    fontSize: Platform.OS === 'ios' ? 24 : 20, 
     fontWeight: 'bold',
     textAlign: 'center',
     flex: 1,
   },
 
   // Search Bar
+  searchTouchable: {
+    marginHorizontal: 20,
+    marginVertical: 15,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginVertical: 15,
     paddingHorizontal: 16,
     borderRadius: 25,
     borderWidth: 1,
@@ -1323,30 +1788,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 50,
+    height: Platform.OS === 'ios' ? 50 : 48,
   },
   searchIcon: { 
     marginRight: 12 
   },
   searchInput: { 
     flex: 1, 
-    height: 50, 
+    height: Platform.OS === 'ios' ? 50 : 48, 
     color: '#8B4513', 
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
   },
 
   // Main Content Layout
   mainContent: {
     flex: 1,
     flexDirection: 'row',
-    paddingHorizontal: 10,
+    paddingHorizontal: Platform.OS === 'ios' ? 10 : 8,
   },
 
   // Sidebar Styles
   sidebar: {
-    width: 100,
+    width: Platform.OS === 'ios' ? 100 : 90,
     backgroundColor: 'white',
-    marginRight: 10,
+    marginRight: Platform.OS === 'ios' ? 10 : 8,
     borderRadius: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1359,7 +1824,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
     paddingHorizontal: 8,
     marginHorizontal: 10,
     marginBottom: 15,
@@ -1369,7 +1834,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   allCategoriesText: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'ios' ? 12 : 10,
     color: '#8B4513',
     fontWeight: '600',
     marginLeft: 4,
@@ -1377,12 +1842,11 @@ const styles = StyleSheet.create({
   },
   categoriesList: {
     paddingHorizontal: 10,
-    paddingBottom: 20,
   },
   categoryItem: {
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 10,
+    marginBottom: Platform.OS === 'ios' ? 20 : 16,
+    padding: Platform.OS === 'ios' ? 10 : 8,
     borderRadius: 12,
     backgroundColor: 'white',
   },
@@ -1393,16 +1857,16 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   categoryImage: { 
-    width: 35, 
-    height: 35, 
+    width: Platform.OS === 'ios' ? 35 : 32, 
+    height: Platform.OS === 'ios' ? 35 : 32, 
     borderRadius: 8,
   },
   categoryLabel: { 
-    fontSize: 9, 
+    fontSize: Platform.OS === 'ios' ? 9 : 8, 
     color: '#8B4513', 
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 11,
+    lineHeight: Platform.OS === 'ios' ? 11 : 10,
   },
 
   // Content Area Styles
@@ -1411,11 +1875,11 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   sectionHeader: {
-    marginBottom: 15,
+    marginBottom: Platform.OS === 'ios' ? 15 : 12,
     paddingHorizontal: 5,
   },
   sectionTitle: { 
-    fontSize: 14, 
+    fontSize: Platform.OS === 'ios' ? 14 : 13, 
     fontWeight: 'bold', 
     color: '#8B4513',
     marginBottom: 5,
@@ -1432,12 +1896,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingBottom: 20,
-    minHeight: 200,
   },
   materialCard: {
     width: '48%',
-    marginBottom: 15,
+    marginBottom: Platform.OS === 'ios' ? 15 : 12,
     borderRadius: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
@@ -1451,7 +1913,7 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: 'relative',
-    height: 120,
+    height: Platform.OS === 'ios' ? 120 : 110,
   },
   materialImage: { 
     width: '100%', 
@@ -1465,17 +1927,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: Platform.OS === 'ios' ? 12 : 10,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     backgroundColor: 'rgba(0,0,0,0.1)',
   },
   materialName: { 
-    fontSize: 12, 
+    fontSize: Platform.OS === 'ios' ? 12 : 11, 
     color: 'white', 
     fontWeight: 'bold',
     flex: 1,
     marginRight: 8,
-    lineHeight: 14,
+    lineHeight: Platform.OS === 'ios' ? 14 : 13,
   },
 
   // Selection Styles
@@ -1503,32 +1965,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 50,
+    width: '100%',
   },
   noMaterialsText: {
     color: '#8B4513',
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 4,
   },
   noMaterialsSubText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' ? 14 : 12,
     textAlign: 'center',
   },
 
   // Search Modal Styles
   searchModalSafeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   searchModalContainer: {
     flex: 1,
     backgroundColor: '#fff',
-    marginTop: Platform.OS === 'ios' ? 0 : 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
+    maxHeight: Platform.OS === 'ios' ? height * 0.85 : height * 0.9,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
@@ -1538,8 +2001,8 @@ const styles = StyleSheet.create({
   searchModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+    paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     backgroundColor: '#fff',
@@ -1560,17 +2023,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
-    paddingHorizontal: 15,
-    height: 44,
+    paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
+    height: Platform.OS === 'ios' ? 44 : 42,
   },
   searchModalIcon: {
     marginRight: 10,
   },
   searchModalInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     color: '#333',
     paddingVertical: 8,
+    paddingRight: 10,
   },
   searchLoadingContainer: {
     flex: 1,
@@ -1580,11 +2044,8 @@ const styles = StyleSheet.create({
   },
   searchLoadingText: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' ? 14 : 12,
     color: '#666',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
   },
   searchScrollView: {
     flex: 1,
@@ -1593,30 +2054,30 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   sectionListContent: {
-    paddingBottom: 100,
+    flexGrow: 1,
   },
   sectionList: {
     flex: 1,
   },
   sectionHeaderContainer: {
     backgroundColor: '#f8f8f8',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
   sectionHeaderText: {
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     fontWeight: '600',
     color: '#8B4513',
   },
   searchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 14,
+    paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -1625,15 +2086,15 @@ const styles = StyleSheet.create({
   },
   searchItemText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     color: '#333',
   },
   searchItemType: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'ios' ? 12 : 10,
     color: '#666',
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: Platform.OS === 'ios' ? 8 : 6,
+    paddingVertical: Platform.OS === 'ios' ? 2 : 1,
     borderRadius: 4,
     marginLeft: 8,
   },
@@ -1641,12 +2102,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
-    minHeight: height * 0.5,
+    paddingTop: Platform.OS === 'ios' ? 100 : 80,
+    minHeight: height * 0.4,
   },
   searchEmptyText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     color: '#666',
   },
 });
