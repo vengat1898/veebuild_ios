@@ -74,8 +74,12 @@ export default function Shop() {
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
-  const [businessTypeDropdownVisible, setBusinessTypeDropdownVisible] = useState(false);
+  const [businessTypeModalVisible, setBusinessTypeModalVisible] = useState(false);
   const { cat_id, customer_id: paramCustomerId } = params;
+  
+  // State to track which filter was selected first
+  const [filterOrder, setFilterOrder] = useState(['type', 'brand', 'business']); // Default order
+  const [activeFilters, setActiveFilters] = useState([]); // Track which filters are active
   
   const isGuestUser = !session || 
                      !session.mobile || 
@@ -84,6 +88,34 @@ export default function Shop() {
                      session.type === 'guest';
 
   const customer_id = paramCustomerId || session?.id;
+
+  // Update active filters when selections change
+  useEffect(() => {
+    const newActiveFilters = [];
+    if (selectedTypes.length > 0) newActiveFilters.push('type');
+    if (selectedBrands.length > 0) newActiveFilters.push('brand');
+    if (businessTypeFilter !== 'all') newActiveFilters.push('business');
+    if (searchQuery.trim() !== '') newActiveFilters.push('search');
+    
+    setActiveFilters(newActiveFilters);
+    
+    // Reorder filters based on selection
+    if (newActiveFilters.length > 0) {
+      const newOrder = [...filterOrder];
+      
+      // Move selected filters to the front in the order they were selected
+      newActiveFilters.forEach((filter, index) => {
+        const currentIndex = newOrder.indexOf(filter);
+        if (currentIndex > index) {
+          // Remove from current position and insert at the front
+          newOrder.splice(currentIndex, 1);
+          newOrder.splice(index, 0, filter);
+        }
+      });
+      
+      setFilterOrder(newOrder);
+    }
+  }, [selectedTypes, selectedBrands, businessTypeFilter, searchQuery]);
 
   const navigateToShopDetails = (item) => {
     router.push({
@@ -476,8 +508,10 @@ export default function Shop() {
     setSelectedTypes([]);
     setSelectedBrands([]);
     setBusinessTypeFilter('all');
-    setBusinessTypeDropdownVisible(false);
+    setBusinessTypeModalVisible(false);
     setSearchQuery('');
+    setFilterOrder(['type', 'brand', 'business']);
+    setActiveFilters([]);
     
     try {
       const vendorUrl = `vendor_list.php?category_id=${cat_id}&customer_id=${customer_id}`;
@@ -859,6 +893,133 @@ export default function Shop() {
     );
   }
 
+  // Function to render filter buttons in the correct order
+  const renderFilterButtons = () => {
+    const filterButtons = [
+      {
+        id: 'type',
+        component: (
+          <TouchableOpacity 
+            key="type"
+            onPress={() => setModalVisible(true)} 
+            style={[
+              styles.filterButton,
+              selectedTypes.length > 0 && styles.activeFilterButton
+            ]}
+          >
+            <Ionicons 
+              name="filter" 
+              size={18} 
+              color={selectedTypes.length > 0 ? 'white' : '#8B4513'} 
+            />
+            <Text style={[
+              styles.filterButtonText,
+              selectedTypes.length > 0 && styles.activeFilterButtonText
+            ]}>
+              {selectedTypes.length > 0 ? `${selectedTypes.length} Types` : 'Types'}
+            </Text>
+            {selectedTypes.length > 0 && (
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  clearTypeFilter();
+                }}
+                style={styles.filterClearIcon}
+              >
+                <Ionicons name="close-circle" size={14} color="white" />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        )
+      },
+      {
+        id: 'brand',
+        component: (
+          <TouchableOpacity 
+            key="brand"
+            onPress={handleBrandModalOpen} 
+            style={[
+              styles.filterButton,
+              selectedBrands.length > 0 && styles.activeFilterButton,
+              selectedTypes.length === 0 && styles.disabledFilterButton
+            ]}
+            disabled={selectedTypes.length === 0}
+          >
+            <Ionicons 
+              name="pricetag" 
+              size={18} 
+              color={selectedTypes.length === 0 ? '#CCCCCC' : selectedBrands.length > 0 ? 'white' : '#8B4513'} 
+            />
+            <Text style={[
+              styles.filterButtonText,
+              selectedTypes.length === 0 && styles.disabledFilterButtonText,
+              selectedBrands.length > 0 && styles.activeFilterButtonText
+            ]}>
+              {selectedBrands.length > 0 ? `${selectedBrands.length} Brands` : 'Brands'}
+            </Text>
+            {selectedBrands.length > 0 && selectedTypes.length > 0 && (
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  clearBrandFilter();
+                }}
+                style={styles.filterClearIcon}
+              >
+                <Ionicons name="close-circle" size={14} color="white" />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        )
+      },
+      {
+        id: 'business',
+        component: (
+          <TouchableOpacity 
+            key="business"
+            onPress={() => setBusinessTypeModalVisible(true)} 
+            style={[
+              styles.filterButton,
+              businessTypeFilter !== 'all' && styles.activeFilterButton
+            ]}
+          >
+            <Ionicons 
+              name="business" 
+              size={18} 
+              color={businessTypeFilter !== 'all' ? 'white' : '#8B4513'} 
+            />
+            <Text style={[
+              styles.filterButtonText,
+              businessTypeFilter !== 'all' && styles.activeFilterButtonText
+            ]}>
+              {businessTypeFilter === 'all' ? 'Business' : 
+               businessTypeFilter === 'dealer' ? 'Dealers' : 'Vendors'}
+            </Text>
+            {businessTypeFilter !== 'all' && (
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  applyBusinessTypeFilter('all');
+                }}
+                style={styles.filterClearIcon}
+              >
+                <Ionicons name="close-circle" size={14} color="white" />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        )
+      }
+    ];
+
+    // Sort buttons according to filterOrder
+    const sortedButtons = [...filterButtons].sort((a, b) => {
+      const indexA = filterOrder.indexOf(a.id);
+      const indexB = filterOrder.indexOf(b.id);
+      return indexA - indexB;
+    });
+
+    return sortedButtons.map(button => button.component);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -893,194 +1054,7 @@ export default function Shop() {
 
       {/* Filter Row */}
       <View style={styles.filterRow}>
-        {/* Type Filter Button */}
-        <TouchableOpacity 
-          onPress={() => setModalVisible(true)} 
-          style={[
-            styles.filterButton,
-            selectedTypes.length > 0 && styles.activeFilterButton
-          ]}
-        >
-          <Ionicons 
-            name="filter" 
-            size={18} 
-            color={selectedTypes.length > 0 ? 'white' : '#8B4513'} 
-          />
-          <Text style={[
-            styles.filterButtonText,
-            selectedTypes.length > 0 && styles.activeFilterButtonText
-          ]}>
-            {selectedTypes.length > 0 ? `${selectedTypes.length} Types` : 'Types'}
-          </Text>
-          {selectedTypes.length > 0 && (
-            <TouchableOpacity 
-              onPress={(e) => {
-                e.stopPropagation();
-                clearTypeFilter();
-              }}
-              style={styles.filterClearIcon}
-            >
-              <Ionicons name="close-circle" size={14} color="white" />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
-        {/* Brand Filter Button */}
-        <TouchableOpacity 
-          onPress={handleBrandModalOpen} 
-          style={[
-            styles.filterButton,
-            selectedBrands.length > 0 && styles.activeFilterButton,
-            selectedTypes.length === 0 && styles.disabledFilterButton
-          ]}
-          disabled={selectedTypes.length === 0}
-        >
-          <Ionicons 
-            name="pricetag" 
-            size={18} 
-            color={selectedTypes.length === 0 ? '#CCCCCC' : selectedBrands.length > 0 ? 'white' : '#8B4513'} 
-          />
-          <Text style={[
-            styles.filterButtonText,
-            selectedTypes.length === 0 && styles.disabledFilterButtonText,
-            selectedBrands.length > 0 && styles.activeFilterButtonText
-          ]}>
-            {selectedBrands.length > 0 ? `${selectedBrands.length} Brands` : 'Brands'}
-          </Text>
-          {selectedBrands.length > 0 && selectedTypes.length > 0 && (
-            <TouchableOpacity 
-              onPress={(e) => {
-                e.stopPropagation();
-                clearBrandFilter();
-              }}
-              style={styles.filterClearIcon}
-            >
-              <Ionicons name="close-circle" size={14} color="white" />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
-        {/* Business Type Filter */}
-        <View style={styles.businessTypeContainer}>
-          <TouchableOpacity 
-            onPress={() => {
-              setBusinessTypeDropdownVisible(!businessTypeDropdownVisible);
-            }} 
-            style={[
-              styles.filterButton,
-              businessTypeFilter !== 'all' && styles.activeFilterButton
-            ]}
-          >
-            <Ionicons 
-              name="business" 
-              size={18} 
-              color={businessTypeFilter !== 'all' ? 'white' : '#8B4513'} 
-            />
-            <Text style={[
-              styles.filterButtonText,
-              businessTypeFilter !== 'all' && styles.activeFilterButtonText
-            ]}>
-              {businessTypeFilter === 'all' ? 'Business' : 
-               businessTypeFilter === 'dealer' ? 'Dealers' : 'Vendors'}
-            </Text>
-            {businessTypeFilter !== 'all' && (
-              <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  applyBusinessTypeFilter('all');
-                }}
-                style={styles.filterClearIcon}
-              >
-                <Ionicons name="close-circle" size={14} color="white" />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-
-          {businessTypeDropdownVisible && (
-            <View style={styles.businessTypeDropdown}>
-              <TouchableOpacity 
-                style={[
-                  styles.businessTypeOption,
-                  businessTypeFilter === 'all' && styles.selectedBusinessTypeOption
-                ]}
-                onPress={() => {
-                  applyBusinessTypeFilter('all');
-                  setBusinessTypeDropdownVisible(false);
-                }}
-              >
-                <View style={[
-                  styles.radioCircle,
-                  businessTypeFilter === 'all' && styles.selectedRadioCircle
-                ]}>
-                  {businessTypeFilter === 'all' && <View style={styles.radioInnerCircle} />}
-                </View>
-                <Text style={[
-                  styles.businessTypeOptionText,
-                  businessTypeFilter === 'all' && styles.selectedBusinessTypeOptionText
-                ]}>
-                  All
-                </Text>
-                <Text style={styles.businessTypeCount}>
-                  ({vendors.length})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[
-                  styles.businessTypeOption,
-                  businessTypeFilter === 'dealer' && styles.selectedBusinessTypeOption
-                ]}
-                onPress={() => {
-                  applyBusinessTypeFilter('dealer');
-                  setBusinessTypeDropdownVisible(false);
-                }}
-              >
-                <View style={[
-                  styles.radioCircle,
-                  businessTypeFilter === 'dealer' && styles.selectedRadioCircle
-                ]}>
-                  {businessTypeFilter === 'dealer' && <View style={styles.radioInnerCircle} />}
-                </View>
-                <Text style={[
-                  styles.businessTypeOptionText,
-                  businessTypeFilter === 'dealer' && styles.selectedBusinessTypeOptionText
-                ]}>
-                  Dealers Only
-                </Text>
-                <Text style={styles.businessTypeCount}>
-                  ({vendors.filter(v => v.dealer === "1" || v.dealer === 1).length})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[
-                  styles.businessTypeOption,
-                  businessTypeFilter === 'vendor' && styles.selectedBusinessTypeOption
-                ]}
-                onPress={() => {
-                  applyBusinessTypeFilter('vendor');
-                  setBusinessTypeDropdownVisible(false);
-                }}
-              >
-                <View style={[
-                  styles.radioCircle,
-                  businessTypeFilter === 'vendor' && styles.selectedRadioCircle
-                ]}>
-                  {businessTypeFilter === 'vendor' && <View style={styles.radioInnerCircle} />}
-                </View>
-                <Text style={[
-                  styles.businessTypeOptionText,
-                  businessTypeFilter === 'vendor' && styles.selectedBusinessTypeOptionText
-                ]}>
-                  Vendors Only
-                </Text>
-                <Text style={styles.businessTypeCount}>
-                  ({vendors.filter(v => !(v.dealer === "1" || v.dealer === 1)).length})
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        {renderFilterButtons()}
 
         {/* Reset Button - Only shown when filters are active */}
         {(selectedTypes.length > 0 || selectedBrands.length > 0 || businessTypeFilter !== 'all' || searchQuery.trim() !== '') && (
@@ -1157,7 +1131,11 @@ export default function Shop() {
                 <Text style={styles.loadingText}>Loading types...</Text>
               </View>
             ) : (
-              <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+              <ScrollView 
+                style={styles.modalScrollView} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollViewContent}
+              >
                 {types.map((type) => (
                   <TouchableOpacity
                     key={type.id}
@@ -1257,6 +1235,7 @@ export default function Shop() {
                   );
                 }}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollViewContent}
               />
             ) : (
               <View style={styles.noBrandsContainer}>
@@ -1283,6 +1262,117 @@ export default function Shop() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Business Type Modal */}
+      <Modal 
+        visible={businessTypeModalVisible} 
+        animationType="fade" 
+        transparent={true}
+        onRequestClose={() => setBusinessTypeModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalBackgroundCentered}
+          activeOpacity={1}
+          onPress={() => setBusinessTypeModalVisible(false)}
+        >
+          <View style={styles.businessTypeModalContainer}>
+            <View style={styles.businessTypeModalContent}>
+              <View style={styles.businessTypeModalHeader}>
+                <Text style={styles.businessTypeModalTitle}>Filter by Business Type</Text>
+                <TouchableOpacity 
+                  onPress={() => setBusinessTypeModalVisible(false)} 
+                  style={styles.businessTypeCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#8B4513" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.businessTypeOptionsContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.businessTypeModalOption,
+                    businessTypeFilter === 'all' && styles.selectedBusinessTypeModalOption
+                  ]}
+                  onPress={() => {
+                    applyBusinessTypeFilter('all');
+                    setBusinessTypeModalVisible(false);
+                  }}
+                >
+                  <View style={[
+                    styles.radioCircle,
+                    businessTypeFilter === 'all' && styles.selectedRadioCircle
+                  ]}>
+                    {businessTypeFilter === 'all' && <View style={styles.radioInnerCircle} />}
+                  </View>
+                  <Text style={[
+                    styles.businessTypeModalOptionText,
+                    businessTypeFilter === 'all' && styles.selectedBusinessTypeModalOptionText
+                  ]}>
+                    All Businesses
+                  </Text>
+                  <Text style={styles.businessTypeModalCount}>
+                    ({vendors.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[
+                    styles.businessTypeModalOption,
+                    businessTypeFilter === 'dealer' && styles.selectedBusinessTypeModalOption
+                  ]}
+                  onPress={() => {
+                    applyBusinessTypeFilter('dealer');
+                    setBusinessTypeModalVisible(false);
+                  }}
+                >
+                  <View style={[
+                    styles.radioCircle,
+                    businessTypeFilter === 'dealer' && styles.selectedRadioCircle
+                  ]}>
+                    {businessTypeFilter === 'dealer' && <View style={styles.radioInnerCircle} />}
+                  </View>
+                  <Text style={[
+                    styles.businessTypeModalOptionText,
+                    businessTypeFilter === 'dealer' && styles.selectedBusinessTypeModalOptionText
+                  ]}>
+                    Dealers Only
+                  </Text>
+                  <Text style={styles.businessTypeModalCount}>
+                    ({vendors.filter(v => v.dealer === "1" || v.dealer === 1).length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[
+                    styles.businessTypeModalOption,
+                    businessTypeFilter === 'vendor' && styles.selectedBusinessTypeModalOption
+                  ]}
+                  onPress={() => {
+                    applyBusinessTypeFilter('vendor');
+                    setBusinessTypeModalVisible(false);
+                  }}
+                >
+                  <View style={[
+                    styles.radioCircle,
+                    businessTypeFilter === 'vendor' && styles.selectedRadioCircle
+                  ]}>
+                    {businessTypeFilter === 'vendor' && <View style={styles.radioInnerCircle} />}
+                  </View>
+                  <Text style={[
+                    styles.businessTypeModalOptionText,
+                    businessTypeFilter === 'vendor' && styles.selectedBusinessTypeModalOptionText
+                  ]}>
+                    Vendors Only
+                  </Text>
+                  <Text style={styles.businessTypeModalCount}>
+                    ({vendors.filter(v => !(v.dealer === "1" || v.dealer === 1)).length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -1449,7 +1539,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Filter Row - Fixed to prevent button size changes
+  // Filter Row - Now with dynamic ordering
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1458,6 +1548,7 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
     justifyContent: 'flex-start',
+    minHeight: 40,
   },
   
   // Main filter buttons - Consistent size
@@ -1547,89 +1638,6 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontWeight: '600',
     textAlign: 'center',
-  },
-
-  // Business Type Filter Styles
-  businessTypeContainer: {
-    position: 'relative',
-    zIndex: 100,
-    minWidth: 100,
-    maxWidth: 140,
-    flexShrink: 0,
-  },
-  
-  businessTypeDropdown: {
-position: 'absolute',
-  top: '100%', // Changed from '100%' to 42 to position below the button
-  left: 0,
-  right: 0,
-  backgroundColor: 'white',
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#D2691E',
-  marginTop: 4, // Small gap from the button
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.15,
-  shadowRadius: 4,
-  elevation: 5,
-  zIndex: 1000,
-  maxHeight: height * 0.3,
-  minWidth: 140,
-  },
-  
-  businessTypeOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    minHeight: 48,
-  },
-  
-  selectedBusinessTypeOption: {
-    backgroundColor: '#FFF8F0',
-  },
-  
-  radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#8B4513',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  selectedRadioCircle: {
-    borderColor: '#8B4513',
-  },
-  
-  radioInnerCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#8B4513',
-  },
-  
-  businessTypeOptionText: {
-    fontSize: Platform.OS === 'ios' ? 14 : 12,
-    color: '#8B4513',
-    flex: 1,
-  },
-  
-  selectedBusinessTypeOptionText: {
-    fontWeight: '600',
-    color: '#8B4513',
-  },
-  
-  businessTypeCount: {
-    fontSize: Platform.OS === 'ios' ? 12 : 10,
-    color: '#A0522D',
-    fontStyle: 'italic',
-    marginLeft: 4,
   },
 
   // List Container
@@ -1768,10 +1776,17 @@ position: 'absolute',
     // Icon styling
   },
 
-  // Modal Styles
+  // Modal Styles - FIXED FOR ANDROID BOTTOM BUTTON ISSUE
   modalBackground: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  
+  modalBackgroundCentered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   
@@ -1806,12 +1821,63 @@ position: 'absolute',
     maxHeight: height * 0.5,
     paddingHorizontal: 4,
   },
+
+  modalScrollViewContent: {
+    paddingBottom: Platform.OS === 'ios' ? 20 : 60, // Extra padding for Android
+  },
   
   modalLoader: {
     alignItems: 'center',
     paddingVertical: 40,
     justifyContent: 'center',
     minHeight: 200,
+  },
+
+  // Modal Buttons - FIXED FOR ANDROID BOTTOM BUTTON ISSUE
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+    backgroundColor: '#FFF8F0',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 40, // Increased padding for Android
+    paddingHorizontal: 4,
+    position: 'relative',
+    minHeight: 80, // Ensure minimum height
+  },
+  
+  modalButton: {
+    flex: 1,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  
+  clearButton: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#D2691E',
+  },
+  
+  applyButton: {
+    backgroundColor: '#8B4513',
+  },
+  
+  clearButtonText: {
+    color: '#8B4513',
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
+    fontWeight: '600',
+  },
+  
+  applyButtonText: {
+    color: 'white',
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
+    fontWeight: '600',
   },
 
   // Checkbox Styles
@@ -1884,49 +1950,106 @@ position: 'absolute',
     fontWeight: '600',
   },
 
-  // Modal Buttons - Fixed positioning to prevent hiding
-  modalButtonContainer: {
+  // Business Type Modal Styles
+  businessTypeModalContainer: {
+    width: '85%',
+    maxWidth: 400,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 10,
+    maxHeight: height * 0.5,
+    minHeight: 200,
+  },
+  
+  businessTypeModalContent: {
+    padding: 0,
+  },
+  
+  businessTypeModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
-    backgroundColor: '#FFF8F0',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
-    position: 'relative',
-  },
-  
-  modalButton: {
-    flex: 1,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    borderRadius: 12,
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+    backgroundColor: '#FFF8F0',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  
+  businessTypeModalTitle: {
+    fontSize: Platform.OS === 'ios' ? 18 : 16,
+    fontWeight: 'bold',
+    color: '#8B4513',
+  },
+  
+  businessTypeCloseButton: {
+    padding: 4,
+  },
+  
+  businessTypeOptionsContainer: {
+    paddingVertical: 16,
+  },
+  
+  businessTypeModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    minHeight: 56,
+  },
+  
+  selectedBusinessTypeModalOption: {
+    backgroundColor: '#FFF8F0',
+  },
+  
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#8B4513',
+    marginRight: 12,
     justifyContent: 'center',
-    minHeight: 52,
+    alignItems: 'center',
   },
   
-  clearButton: {
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#D2691E',
+  selectedRadioCircle: {
+    borderColor: '#8B4513',
   },
   
-  applyButton: {
+  radioInnerCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#8B4513',
   },
   
-  clearButtonText: {
-    color: '#8B4513',
+  businessTypeModalOptionText: {
     fontSize: Platform.OS === 'ios' ? 16 : 14,
-    fontWeight: '600',
+    color: '#8B4513',
+    flex: 1,
+    fontWeight: '500',
   },
   
-  applyButtonText: {
-    color: 'white',
-    fontSize: Platform.OS === 'ios' ? 16 : 14,
+  selectedBusinessTypeModalOptionText: {
     fontWeight: '600',
+    color: '#8B4513',
+  },
+  
+  businessTypeModalCount: {
+    fontSize: Platform.OS === 'ios' ? 14 : 12,
+    color: '#A0522D',
+    fontStyle: 'italic',
+    marginLeft: 4,
   },
 
   // Loading States

@@ -184,8 +184,11 @@ export default function Realestate() {
     setFilteredData(filtered);
   };
 
-  const renderCard = ({ item }) => (
-    <View style={styles.card}>
+  const renderCard = ({ item, index }) => (
+    <View style={[
+      styles.card,
+      index === filteredData.length - 1 && styles.lastCard // Add extra bottom margin for last item
+    ]}>
       <View style={styles.cardContent}>
         {/* Touchable Image */}
         <TouchableOpacity 
@@ -294,7 +297,11 @@ export default function Realestate() {
           data={filteredData}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderCard}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={styles.listContentContainer}
+          showsVerticalScrollIndicator={false}
+          // Optional: Add these props for better scrolling experience
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={false}
         />
       ) : (
         <View style={styles.noResults}>
@@ -306,7 +313,10 @@ export default function Realestate() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8F0' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#FFF8F0' 
+  },
   header: {
     height: 120,
     paddingTop: 40,
@@ -317,8 +327,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
     elevation: 5,
   },
-  backButton: { marginRight: 10 },
-  headerText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
+  backButton: { 
+    marginRight: 10 
+  },
+  headerText: { 
+    color: 'white', 
+    fontSize: 22, 
+    fontWeight: 'bold' 
+  },
   searchContainer: {
     flexDirection: 'row',
     borderWidth: 0.5,
@@ -329,12 +345,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, height: 40, color: '#000' },
+  searchIcon: { 
+    marginRight: 8 
+  },
+  searchInput: { 
+    flex: 1, 
+    height: 40, 
+    color: '#000' 
+  },
+  // List container style
+  listContentContainer: {
+    paddingBottom: 40, // Increased bottom padding for better scrolling
+    paddingTop: 8,
+  },
   card: {
     backgroundColor: '#FFF',
     padding: 16,
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 12, // Reduced from 16 to 12 for tighter spacing
     borderRadius: 12,
     shadowColor: '#5D4037',
     shadowOpacity: 0.2,
@@ -343,17 +371,39 @@ const styles = StyleSheet.create({
     elevation: 4,
     minHeight: 250,
   },
-  cardContent: { flexDirection: 'row', marginBottom: 16 },
+  lastCard: {
+    marginBottom: 30, // Extra margin for the last card
+  },
+  cardContent: { 
+    flexDirection: 'row', 
+    marginBottom: 16 
+  },
   propertyImage: {
     width: 140,
     height: 150,
     borderRadius: 8,
     backgroundColor: "#f0f0f0",
   },
-  textGroupContainer: { flex: 1, marginLeft: 16 },
-  textGroup: { flex: 1, justifyContent: 'flex-start', gap: 8 },
-  title: { fontWeight: 'bold', fontSize: 15, color: '#333', textAlign: 'left' },
-  subText: { fontSize: 12, color: '#555', textAlign: 'left' },
+  textGroupContainer: { 
+    flex: 1, 
+    marginLeft: 16 
+  },
+  textGroup: { 
+    flex: 1, 
+    justifyContent: 'flex-start', 
+    gap: 8 
+  },
+  title: { 
+    fontWeight: 'bold', 
+    fontSize: 15, 
+    color: '#333', 
+    textAlign: 'left' 
+  },
+  subText: { 
+    fontSize: 12, 
+    color: '#555', 
+    textAlign: 'left' 
+  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -371,10 +421,29 @@ const styles = StyleSheet.create({
     minHeight: 40,
     maxWidth: '32%',
   },
-  buttonText: { color: 'white', fontSize: 11, fontWeight: '600', marginLeft: 4 },
+  buttonText: { 
+    color: 'white', 
+    fontSize: 11, 
+    fontWeight: '600', 
+    marginLeft: 4 
+  },
   icon: {},
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: 'red', textAlign: 'center', marginTop: 20 },
-  noResults: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  cardTextContainer: { flex: 1 },
+  loader: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  errorText: { 
+    color: 'red', 
+    textAlign: 'center', 
+    marginTop: 20 
+  },
+  noResults: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  cardTextContainer: { 
+    flex: 1 
+  },
 });

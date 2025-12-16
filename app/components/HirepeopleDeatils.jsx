@@ -1187,7 +1187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FDF6EC',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 15 : 15,
+    paddingTop: Platform.OS === 'ios' ? 15 : 25,
     paddingBottom: 15,
     paddingHorizontal: 16,
     shadowColor: '#000',
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Platform.OS === 'ios' ? 0 : 5,
+    marginTop: Platform.OS === 'ios' ? 5 : 15,
   },
   backButton: {
     width: 40,
